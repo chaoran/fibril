@@ -18,15 +18,17 @@ extern int __thread FIBRIL_TID;
 } while (0)
 
 #define SAFE_RETURN(ret, call) do { \
-  if (-1UL == (size_t) (ret = (call))) { \
+  if (-1 == (size_t) (ret = (call))) { \
     perror(#call); \
     abort(); \
   } \
 } while(0)
 
 #define SAFE_FNCALL(call) do { \
-  size_t ret; \
-  SAFE_RETURN(ret, call); \
+  if (-1 == (size_t) (call)) { \
+    perror(#call); \
+    abort(); \
+  } \
 } while(0)
 
 #else
