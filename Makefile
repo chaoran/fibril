@@ -1,10 +1,10 @@
 CC = gcc
-CFLAGS = -Wall -pthread -g -O2 -DENABLE_SAFE
-LDFLAGS = -pthread -lpthread
+CFLAGS = -Wall -pthread -g -DENABLE_SAFE
+LDFLAGS = -pthread -lpthread -lrt
 
 EXEC = fib
-INCS = fibril.h stack.h
-SRCS = fib.c init.c stack.c
+INCS = fibril.h stack.h page.h globals.h
+SRCS = fib.c init.c stack.c page.c
 OBJS = $(SRCS:.c=.o)
 
 .PHONY: all run clean debug

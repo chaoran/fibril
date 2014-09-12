@@ -6,22 +6,19 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "debug.h"
+#include "page.h"
 #include "safe.h"
 #include "stack.h"
+#include "debug.h"
 #include "fibril.h"
-
-/** Start and end of global section.*/
-/*extern char _etext, _end;*/
-
-/*#define GLOBALS_START PAGE_ALIGN_DOWN(&_etext);*/
-/*#define GLOBALS_END   PAGE_ALIGN_UP  (&_end);*/
+#include "globals.h"
 
 #define MAX_PROCS 256
 #define STACK_SIZE 8 * 1024 * 1024
 
-static int _pids[256];
+static int _pids[MAX_PROCS];
 static int _nproc;
+static int _globals;
 
 int __thread FIBRIL_TID;
 
@@ -34,25 +31,24 @@ static int fibril_main(void * id_)
   int id = (int) (size_t) id_;
   FIBRIL_TID = id;
 
-  _pids[id] = getpid();
-
-  DEBUG_PRINT_INFO("pid = %d, stackaddr = %p\n", _pids[id], stack_addr());
   SAFE_ASSERT(stack_addr() == _stackaddr);
+  SAFE_FNCALL(page_map(_globals, GLOBALS_ALIGNED_ADDR, GLOBALS_ALIGNED_SIZE));
 
   return 0;
 }
 
-/*static void share_globals()*/
-/*{*/
-/*}*/
-
-static void spawn_workers(int nproc)
+int fibril_init(int nproc)
 {
   int i;
+
+  _globals = page_expose(GLOBALS_ALIGNED_ADDR, GLOBALS_ALIGNED_SIZE);
 
 #ifdef ENABLE_SAFE
   _stackaddr = stack_addr();
 #endif
+
+  DEBUG_PRINT_INFO("__data_start=%p, _end=%p, _stackaddr=%p\n",
+      &__data_start, &_end, _stackaddr);
 
   _pids[0] = getpid();
 
@@ -60,15 +56,10 @@ static void spawn_workers(int nproc)
     void * stack = malloc(STACK_SIZE);
     void * stackTop = stack + STACK_SIZE;
 
-    SAFE_FNCALL(clone(fibril_main, stackTop,
+    SAFE_RETURN(_pids[i], clone(fibril_main, stackTop,
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
           (void *) (intptr_t) i));
   }
-}
-
-int fibril_init(int nproc)
-{
-  spawn_workers(nproc);
 
   return FIBRIL_SUCCESS;
 }
