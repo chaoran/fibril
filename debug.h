@@ -6,12 +6,16 @@
 #include <stdio.h>
 extern int __thread FIBRIL_TID;
 
+#ifndef ENABLE_SAFE
+#define ENABLE_SAFE
+#endif
+
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0
 #endif
 
 #define DEBUG_PRINT(format, ...) do { \
-  fprintf(stderr, "[%3d]: " format, FIBRIL_TID, ## __VA_ARGS__); \
+  fprintf(stderr, "[%d]: " format, FIBRIL_TID, ## __VA_ARGS__); \
   fflush(stderr); \
 } while (0)
 
