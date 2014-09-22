@@ -34,8 +34,8 @@ extern int __thread FIBRIL_TID;
 #else
 
 #define SAFE_ASSERT(...)
-#define SAFE_RETURN(...)
-#define SAFE_FNCALL(...)
+#define SAFE_RETURN(ret, call) (ret = (call))
+#define SAFE_FNCALL(call) (call)
 
 #endif
 
