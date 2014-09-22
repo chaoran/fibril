@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <sys/wait.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 
 #include "page.h"
 #include "safe.h"
@@ -16,51 +18,47 @@
 #define MAX_PROCS 256
 #define STACK_SIZE 8 * 1024 * 1024
 
-static int _pids[MAX_PROCS];
-static int _nproc;
+static pid_t _tids[MAX_PROCS];
+static int _nprocs;
 static int _globals;
 
 int __thread FIBRIL_TID;
 
-#ifdef ENABLE_SAFE
-static void * _stackaddr;
-#endif
-
-static int fibril_main(void * id_)
+static int fibril_main(int id)
 {
-  int id = (int) (size_t) id_;
   FIBRIL_TID = id;
+  DEBUG_PRINT_INFO("initialized: tid=%d\n", _tids[id]);
 
-  SAFE_ASSERT(stack_addr() == _stackaddr);
-  SAFE_FNCALL(page_map(_globals, GLOBALS_ALIGNED_ADDR, GLOBALS_ALIGNED_SIZE));
-
-  return 0;
+  if (id) {
+    exit(EXIT_SUCCESS);
+  } else {
+    return 0;
+  }
 }
 
-int fibril_init(int nproc)
+int fibril_init(int nprocs)
 {
+  /** Initialize globals. */
+  _nprocs = nprocs;
+  _tids[0] = syscall(SYS_gettid);
+
+  /** Share global data segment. */
+  _globals = page_expose(GLOBALS_ALIGNED_RANGE);
+
+  /** Create workers. */
   int i;
+  for (i = 1; i < nprocs; ++i) {
+    pid_t pid = syscall(SYS_clone, CLONE_FS | CLONE_FILES | SIGCHLD, NULL);
 
-  _globals = page_expose(GLOBALS_ALIGNED_ADDR, GLOBALS_ALIGNED_SIZE);
-
-#ifdef ENABLE_SAFE
-  _stackaddr = stack_addr();
-#endif
-
-  DEBUG_PRINT_INFO("__data_start=%p, _end=%p, _stackaddr=%p\n",
-      &__data_start, &_end, _stackaddr);
-
-  _pids[0] = getpid();
-
-  for (i = 1; i < nproc; ++i) {
-    void * stack = malloc(STACK_SIZE);
-    void * stackTop = stack + STACK_SIZE;
-
-    SAFE_RETURN(_pids[i], clone(fibril_main, stackTop,
-          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
-          (void *) (intptr_t) i));
+    if (pid) {
+      _tids[i] = pid;
+      DEBUG_PRINT_INFO("child process created: id=%d, tid=%d\n", i, _tids[i]);
+    } else {
+      break;
+    }
   }
 
+  fibril_main(i % nprocs);
   return FIBRIL_SUCCESS;
 }
 
@@ -68,8 +66,10 @@ int fibril_exit()
 {
   int i;
 
-  for (i = 1; i < _nproc; ++i) {
-    waitpid(_pids[i], NULL, 0);
+  for (i = 1; i < _nprocs; ++i) {
+    int status;
+    SAFE_FNCALL(waitpid(_tids[i], &status, 0));
+    SAFE_ASSERT(WIFEXITED(status));
   }
 
   return FIBRIL_SUCCESS;
