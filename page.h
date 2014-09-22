@@ -1,6 +1,8 @@
 #ifndef PAGE_H
 #define PAGE_H
 
+#include <stddef.h>
+
 #define PAGE_SIZE      4096ULL
 #define PAGE_SIZE_MASK (PAGE_SIZE - 1)
 
