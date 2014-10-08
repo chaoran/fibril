@@ -9,7 +9,7 @@
   FIBRILi_REST(__VA_ARGS__) \
 } while (0)
 
-int fibril_init(int nproc);
+int fibril_init(int nprocs);
 int fibril_exit();
 
 #define FIBRIL_SUCCESS 0
