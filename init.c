@@ -1,4 +1,7 @@
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -71,7 +74,9 @@ int fibril_init(int nprocs)
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    pid_t pid = syscall(SYS_clone, CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD, NULL);
+    pid_t pid;
+    SAFE_RETURN(pid, syscall(SYS_clone,
+          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD, NULL));
 
     if (pid) {
       _tids[i] = pid;
