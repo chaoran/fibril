@@ -5,27 +5,28 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <assert.h>
 
 extern int __thread FIBRIL_TID;
 
 #define SAFE_ASSERT(cond) do { \
   if (!(cond)) { \
-    fprintf(stderr, "[%3d]: assertion failed: " # cond, FIBRIL_TID); \
+    fprintf(stderr, "[%3d]: assertion failed: " # cond "\n", FIBRIL_TID); \
     fflush(stderr); \
     abort(); \
   } \
 } while (0)
 
 #define SAFE_RETURN(ret, call) do { \
-  if (-1 == (size_t) (ret = (call))) { \
+  if (-1 == (intptr_t) (ret = (call))) { \
     perror(#call); \
     abort(); \
   } \
 } while(0)
 
 #define SAFE_FNCALL(call) do { \
-  if (-1 == (size_t) (call)) { \
+  if (-1 == (intptr_t) (call)) { \
     perror(#call); \
     abort(); \
   } \
