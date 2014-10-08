@@ -107,11 +107,7 @@ void vtmem_init()
   map_t * maps = load_maps();
 
   SAFE_ASSERT(0 < share_maps_by_range(maps, GLOBALS_ALIGNED_RANGE));
-  /*SAFE_ASSERT(0 < share_maps_by_name (maps, "[heap]"));*/
-  /*SAFE_ASSERT(0 < share_maps_by_name (maps, "libc"));*/
-  /*SAFE_ASSERT(0 < share_maps_by_name (maps, "libpthread"));*/
   SAFE_ASSERT(0 < share_maps_by_name (maps, "libhoard"));
-  /*SAFE_ASSERT(0 < share_maps_by_name (maps, NULL));*/
 }
 
 void vtmem_dump()
