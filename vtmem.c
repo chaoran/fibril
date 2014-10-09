@@ -26,7 +26,9 @@ typedef struct _map_t {
   struct _map_t * next;
 } map_t;
 
-static map_t * load_maps()
+static map_t _maps;
+
+static void load_maps()
 {
   FILE * maps;
   SAFE_RETURN(maps, fopen("/proc/self/maps", "r"));
@@ -57,11 +59,14 @@ static map_t * load_maps()
   free(map);
 
   SAFE_FNCALL(fclose(maps));
-  return list;
+  _maps = list;
 }
 
-static int share_maps_by_name(map_t * map, const char * name)
+static int share_maps_by_name(const char * name)
 {
+  SAFE_ASSERT(_maps);
+
+  map_t * map = _maps;
   int count = 0;
 
   while (map) {
@@ -80,8 +85,11 @@ static int share_maps_by_name(map_t * map, const char * name)
   return count;
 }
 
-static int share_maps_by_range(map_t * map, const void * addr, size_t size)
+static int share_maps_by_range(const void * addr, size_t size)
 {
+  SAFE_ASSERT(_maps);
+
+  map_t * map = _maps;
   int count = 0;
   const void * end = addr + size;
 
@@ -104,14 +112,36 @@ static int share_maps_by_range(map_t * map, const void * addr, size_t size)
 void vtmem_init()
 {
   /** Load virtual address maps */
-  map_t * maps = load_maps();
+  _maps = load_maps();
 
-  SAFE_ASSERT(0 < share_maps_by_range(maps, GLOBALS_ALIGNED_RANGE));
-  SAFE_ASSERT(0 < share_maps_by_name (maps, "libhoard"));
+  SAFE_ASSERT(0 < share_maps_by_range(GLOBALS_ALIGNED_RANGE));
+  SAFE_ASSERT(0 < share_maps_by_name ("libhoard"));
 }
 
 void vtmem_dump()
 {
   load_maps();
+}
+
+int vtmem_share(const char * name)
+{
+  SAFE_ASSERT(_maps);
+
+  map_t * map = _maps;
+
+  while (map) {
+    if ('p' == map->perm.p && 'w' == map->perm.w) {
+      if ((NULL == name && 0 == map->pathname[0])
+          || (NULL != name && NULL != strstr(map->pathname, name))) {
+        map->fd = page_expose(map->addr.start, map->addr.end - map->addr.start);
+        map->perm.p = 's';
+        break;
+      }
+    }
+
+    map = map->next;
+  }
+
+  return map->fd;
 }
 
