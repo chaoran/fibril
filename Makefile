@@ -1,16 +1,17 @@
 CC = gcc
-CFLAGS = -Wall -pthread -g -DENABLE_SAFE
-LDFLAGS = -pthread -L./lib -Wl,-rpath -Wl,./lib
-LDLIBS = -lhoard -lrt
+CFLAGS = -g -Wall -DENABLE_SAFE
+LDLIBS = -lrt -lstdc++ -lm -ldl
 
 EXEC = fib
-INCS = fibril.h stack.h page.h globals.h vtmem.h
-SRCS = fib.c init.c page.c vtmem.c
-OBJS = $(SRCS:.c=.o)
+INCS = fibril.h stack.h page.h globals.h vtmem.h conf.h sync.h
+SRCS = fib.c init.c page.c vtmem.c stack.c sync.c
+HOARD_DIR = Hoard/src
+HOARD_OBJS = $(addprefix $(HOARD_DIR)/, libhoard.o unixtls.o gnuwrapper.o)
+OBJS = $(SRCS:.c=.o) $(HOARD_OBJS)
 
 .PHONY: all run clean debug
 
-$(EXEC): $(OBJS)
+$(EXEC): $(OBJS) $(INCS)
 
 all: $(EXEC)
 
@@ -26,8 +27,12 @@ debug-l2: $(EXEC)
 debug-l3: CFLAGS += -DENABLE_DEBUG -DDEBUG_LEVEL=3
 debug-l3: $(EXEC)
 
+$(HOARD_OBJS):
+	$(MAKE) -C $(HOARD_DIR) linux-gcc-x86-64-static
+
 run: $(EXEC)
 		./$(EXEC)
 
 clean:
-		rm -f $(EXEC) $(OBJS) core.* vgcore.*
+	$(MAKE) -C $(HOARD_DIR) clean
+	rm -f $(EXEC) *.o core.* vgcore.*
