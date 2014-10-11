@@ -4,7 +4,7 @@
 #ifdef ENABLE_DEBUG
 
 #include <stdio.h>
-extern int __thread FIBRIL_TID;
+#include "tls.h"
 
 #ifndef ENABLE_SAFE
 #define ENABLE_SAFE

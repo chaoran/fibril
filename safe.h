@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-
-extern int __thread FIBRIL_TID;
+#include "tls.h"
 
 #define SAFE_ASSERT(cond) do { \
   if (!(cond)) { \

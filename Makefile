@@ -3,8 +3,8 @@ CFLAGS = -g -Wall -DENABLE_SAFE
 LDLIBS = -lrt -lstdc++ -lm -ldl
 
 EXEC = fib
-INCS = fibril.h stack.h page.h globals.h vtmem.h conf.h sync.h
-SRCS = fib.c init.c page.c vtmem.c stack.c sync.c
+INCS = fibril.h page.h shmap.h conf.h sync.h
+SRCS = fib.c init.c shmap.c
 HOARD_DIR = Hoard/src
 HOARD_OBJS = $(addprefix $(HOARD_DIR)/, libhoard.o unixtls.o gnuwrapper.o)
 OBJS = $(SRCS:.c=.o) $(HOARD_OBJS)
