@@ -19,16 +19,15 @@
 #include "shmap.h"
 
 #define FNAME_PREFIX "/fibril"
-#define FNAME_LENGTH (sizeof(FNAME_PREFIX) + sizeof(size_t) * 2)
 
 char __data_start, _end;
 tls_t _tls;
 
-static int shmap_create(size_t sz)
+static int shmap_create(size_t sz, const char * name)
 {
   static size_t fnameSuffix = 0;
   static char   fnamePrefix[] = FNAME_PREFIX;
-  char filename[FNAME_LENGTH];
+  char filename[FILENAME_LIMIT];
 
   int i;
   size_t len = sizeof(fnamePrefix) - 1;
@@ -36,14 +35,25 @@ static int shmap_create(size_t sz)
     filename[i] = fnamePrefix[i];
   }
 
-  int ret = sprintf(filename + len, "%lx", sync_fadd(&fnameSuffix, 1));
-  SAFE_ASSERT(len + ret < FNAME_LENGTH);
+  /** Append .[pid]. */
+  len += sprintf(filename + len, ".%d", PID);
+  SAFE_ASSERT(len < FILENAME_LIMIT);
+
+  /** Append .[name | seqno (if anonymous) ]. */
+  if (name) {
+    len += sprintf(filename + len, ".%s", name);
+  } else {
+    len += sprintf(filename + len, ".%ld", sync_fadd(&fnameSuffix, 1));
+  }
+  SAFE_ASSERT(len < FILENAME_LIMIT);
 
   int shm;
   SAFE_RETURN(shm, shm_open(filename, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
   SAFE_FNCALL(ftruncate(shm, sz));
 
-  DEBUG_PRINT_INFO("created shm: %s fd=%d size=%ld\n", filename, shm, sz);
+  DEBUG_PRINT_INFO("created shm: filename=%s fd=%d size=%ld\n",
+      filename, shm, sz);
+
   return shm;
 }
 
@@ -89,10 +99,10 @@ void * shmap_mmap(void * addr, size_t sz, int shm)
   return ret;
 }
 
-int shmap_expose(void * addr, size_t size)
+int shmap_expose(void * addr, size_t size, const char * name)
 {
   /** Map the shm to a temporary address to copy the content of the pages. */
-  int    shm = shmap_create(size);
+  int    shm = shmap_create(size, name);
   void * buf = shmap_mmap(NULL, size, shm);
 
   memcpy(buf, addr, size);
@@ -100,7 +110,8 @@ int shmap_expose(void * addr, size_t size)
   SAFE_FNCALL(munmap(buf, size));
   shmap_mmap(addr, size, shm);
 
-  DEBUG_PRINT_INFO("exposed %p ~ %p shm=%d\n", addr, addr + size, shm);
+  DEBUG_PRINT_INFO("exposed %p ~ %p shm=%d filename=%s\n",
+      addr, addr + size, shm, name);
   return shm;
 }
 
@@ -117,7 +128,7 @@ static int helper_thread(void * data)
   sync_unlock(mutex_init);
   sync_lock  (mutex_work);
 
-  *retptr = shmap_expose(addr, size);
+  *retptr = shmap_expose(addr, size, "stack_0");
 
   sync_unlock(mutex_done);
   return 0;
@@ -180,11 +191,11 @@ void shmap_init(int nprocs, shmap_t * stacks[])
 
   /** Share global data segment but exclude tls pages. */
   if (data_start < tls_start) {
-    shmap_expose(data_start, tls_start - data_start);
+    shmap_expose(data_start, tls_start - data_start, "globals");
   }
 
   if (tls_end < data_end) {
-    shmap_expose(tls_end, data_end - tls_end);
+    shmap_expose(tls_end, data_end - tls_end, "globals");
   }
 
   void * stack_addr;
@@ -198,9 +209,13 @@ void shmap_init(int nprocs, shmap_t * stacks[])
   stacks[0]->size = stack_size;
 
   int i;
+  char name[FILENAME_LIMIT];
   for (i = 1; i < nprocs; ++i) {
+    int len = sprintf(name, "stack_%d", i);
+    SAFE_ASSERT(len < FILENAME_LIMIT);
+
     stacks[i] = malloc(sizeof(shmap_t));
-    stacks[i]->fd = shmap_create(stack_size);
+    stacks[i]->fd = shmap_create(stack_size, name);
     stacks[i]->addr = shmap_mmap(NULL, stack_size, stacks[i]->fd);
     stacks[i]->size = stack_size;
   }
@@ -224,7 +239,7 @@ void * mmap(void * addr, size_t sz, int prot, int flags, int fd, off_t off)
     if (flags & MAP_ANONYMOUS) {
       flags ^= MAP_ANONYMOUS;
       SAFE_ASSERT(fd == -1);
-      fd = shmap_create(sz);
+      fd = shmap_create(sz, NULL);
     }
   }
 
