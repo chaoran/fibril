@@ -1,20 +1,23 @@
 #ifndef TLS_H
 #define TLS_H
 
+#include "conf.h"
 #include "deque.h"
 
 typedef struct _tls_t {
-  struct tls_s {
+  struct tls {
     int tid;
     void ** stacks;
     deque_t * deqs;
     deque_t deq;
   } x __attribute__ ((aligned (sizeof(void *))));
-  void ** buff[(PAGE_SIZE - sizeof(struct tls_s)) / sizeof(void *)];
-} tls_t;
+  void ** buff[
+    (NUM_TLS_PAGES * PAGE_SIZE - sizeof(struct tls)) / sizeof(void *)
+  ];
+} tls_t __attribute__((aligned (PAGE_SIZE)));
 
-extern tls_t __thread _fibril_tls;
-#define FIBRIL_TLS (_fibril_tls.x)
-#define FIBRIL_TID (_fibril_tls.x.tid)
+extern tls_t _tls;
+#define TLS (_tls.x)
+#define TID (_tls.x.tid)
 
 #endif /* end of include guard: TLS_H */

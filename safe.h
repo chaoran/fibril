@@ -11,7 +11,7 @@
 
 #define SAFE_ASSERT(cond) do { \
   if (!(cond)) { \
-    fprintf(stderr, "[%3d]: assertion failed: " # cond "\n", FIBRIL_TID); \
+    fprintf(stderr, "[%3d]: assertion failed: " # cond "\n", TID); \
     fflush(stderr); \
     abort(); \
   } \

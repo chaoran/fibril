@@ -15,7 +15,7 @@
 #endif
 
 #define DEBUG_PRINT(format, ...) do { \
-  fprintf(stderr, "[%d]: " format, FIBRIL_TID, ## __VA_ARGS__); \
+  fprintf(stderr, "[%d]: " format, TID, ## __VA_ARGS__); \
   fflush(stderr); \
 } while (0)
 

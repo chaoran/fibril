@@ -18,11 +18,9 @@ static int _nprocs;
 static int _tids[MAX_PROCS];
 static shmap_t * _stacks[MAX_PROCS];
 
-tls_t __thread _fibril_tls;
-
 static int tmain(void * id_)
 {
-  FIBRIL_TID = (int) (intptr_t) id_;
+  TID = (int) (intptr_t) id_;
   return 0;
 }
 
