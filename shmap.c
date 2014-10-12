@@ -107,12 +107,8 @@ int shmap_expose(void * addr, size_t size, const char * name)
   void * buf = shmap_mmap(NULL, size, shm);
 
   memcpy(buf, addr, size);
-
-  SAFE_FNCALL(munmap(buf, size));
   shmap_mmap(addr, size, shm);
 
-  DEBUG_PRINT_INFO("exposed %p ~ %p shm=%d filename=%s\n",
-      addr, addr + size, shm, name);
   return shm;
 }
 
@@ -239,11 +235,6 @@ void shmap_init_child(int id)
 void * mmap(void * addr, size_t sz, int prot, int flags, int fd, off_t off)
 {
   /** Change writable private mapping to shared mapping. */
-  void * addr_old = addr;
-  int prot_old = prot;
-  int flags_old = flags;
-  int fd_old = fd;
-
   if ((prot & PROT_WRITE) && (flags & MAP_PRIVATE)) {
     flags ^= MAP_PRIVATE;
     flags |= MAP_SHARED;
@@ -255,14 +246,11 @@ void * mmap(void * addr, size_t sz, int prot, int flags, int fd, off_t off)
     }
   }
 
-  void * ret = (void *) syscall(SYS_mmap, addr, sz, prot, flags, fd, off);
+  addr = (void *) syscall(SYS_mmap, addr, sz, prot, flags, fd, off);
 
-  DEBUG_PRINT_VERBOSE(
-      "mmap: addr=%p(%p) sz=%ld prot=0x%x(0x%x) flags=0x%x(0x%x) fd=%d(%d) \
-off=%ld ret=%p\n",
-      addr, addr_old, sz, prot, prot_old,
-      flags, flags_old, fd, fd_old, off, ret);
+  DEBUG_PRINT_VERBOSE("mmap: %p ~ %p fd=%d off=%ld\n",
+      addr, addr + sz, fd, off);
 
-  return ret;
+  return addr;
 }
 
