@@ -96,6 +96,7 @@ void * shmap_mmap(void * addr, size_t sz, int shm)
   void * ret = (void *) syscall(SYS_mmap, addr, sz, prot, flags, shm, 0);
   SAFE_ASSERT(ret != MAP_FAILED && (!addr || ret == addr));
 
+  DEBUG_PRINT_INFO("mmapped: %p ~ %p fd=%d\n", ret, ret + sz, shm);
   return ret;
 }
 
@@ -173,7 +174,7 @@ static int share_main_stack(void * addr, size_t size)
   return shm;
 }
 
-void shmap_init(int nprocs, shmap_t * stacks[])
+void shmap_init(int nprocs)
 {
   /** Make sure tls is page aligned and is a multiple pages. */
   SAFE_ASSERT(PAGE_ALIGNED(&_tls));
@@ -198,27 +199,38 @@ void shmap_init(int nprocs, shmap_t * stacks[])
     shmap_expose(tls_end, data_end - tls_end, "globals");
   }
 
-  void * stack_addr;
-  size_t stack_size;
+  /** Find out main stack addr and size. */
+  load_stack_attr(&TLS.stack_addr, &TLS.stack_size);
 
-  load_stack_attr(&stack_addr, &stack_size);
+  void * stack_addr = TLS.stack_addr;
+  size_t stack_size = TLS.stack_size;
+  shmap_t * stacks = TLS.stacks;
 
-  stacks[0] = malloc(sizeof(shmap_t));
-  stacks[0]->fd = share_main_stack(stack_addr, stack_size);
-  stacks[0]->addr = shmap_mmap(NULL, stack_size, stacks[0]->fd);
-  stacks[0]->size = stack_size;
+  /** Allocate stacks for everyone. */
+  stacks[0].fd = share_main_stack(stack_addr, stack_size);
+  stacks[0].addr = shmap_mmap(NULL, stack_size, stacks[0].fd);
+  stacks[0].size = stack_size;
 
   int i;
   char name[FILENAME_LIMIT];
+
   for (i = 1; i < nprocs; ++i) {
     int len = sprintf(name, "stack_%d", i);
     SAFE_ASSERT(len < FILENAME_LIMIT);
 
-    stacks[i] = malloc(sizeof(shmap_t));
-    stacks[i]->fd = shmap_create(stack_size, name);
-    stacks[i]->addr = shmap_mmap(NULL, stack_size, stacks[i]->fd);
-    stacks[i]->size = stack_size;
+    stacks[i].fd = shmap_create(stack_size, name);
+    stacks[i].addr = shmap_mmap(NULL, stack_size, stacks[i].fd);
+    stacks[i].size = stack_size;
   }
+}
+
+void shmap_init_child(int id)
+{
+  /** Only child threads need to do this. */
+  if (id == 0) return;
+
+  void * addr = shmap_mmap(TLS.stack_addr, TLS.stack_size, TLS.stacks[id].fd);
+  SAFE_ASSERT(addr == TLS.stack_addr);
 }
 
 /**

@@ -9,6 +9,7 @@ typedef struct _shmap_t {
   size_t size;
 } shmap_t;
 
-void shmap_init(int nprocs, shmap_t * stacks[]);
+void shmap_init(int nprocs);
+void shmap_init_child(int id);
 
 #endif /* end of include guard: SHMAP_H */

@@ -3,12 +3,15 @@
 
 #include "conf.h"
 #include "deque.h"
+#include "shmap.h"
 
 typedef struct _tls_t {
   struct tls {
     int tid;
     int pid;
-    void ** stacks;
+    void * stack_addr;
+    size_t stack_size;
+    shmap_t * stacks;
     deque_t * deqs;
     deque_t deq;
   } x __attribute__ ((aligned (sizeof(void *))));

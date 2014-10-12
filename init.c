@@ -16,13 +16,13 @@
 
 static int _nprocs;
 static int _pids[MAX_PROCS];
-static shmap_t * _stacks[MAX_PROCS];
 
 static int tmain(void * id_)
 {
   TID = (int) (intptr_t) id_;
   PID = getpid();
 
+  shmap_init_child(TID);
   return 0;
 }
 
@@ -33,14 +33,19 @@ int fibril_init(int nprocs)
   TID = 0;
   PID = getpid();
 
+  TLS.stacks = malloc(sizeof(shmap_t [nprocs]));
+
   /** Initialize shared mappings */
-  shmap_init(nprocs, _stacks);
+  shmap_init(nprocs);
 
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    SAFE_RETURN(_pids[i], clone(tmain, _stacks[i]->addr + _stacks[i]->size,
-          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD, (void *) (intptr_t) i));
+    void * stacktop = TLS.stacks[i].addr + TLS.stacks[i].size;
+
+    SAFE_RETURN(_pids[i], clone(tmain, stacktop,
+          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
+          (void *) (intptr_t) i));
   }
 
   tmain((void *) 0);
