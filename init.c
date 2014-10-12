@@ -15,12 +15,14 @@
 #include "fibril.h"
 
 static int _nprocs;
-static int _tids[MAX_PROCS];
+static int _pids[MAX_PROCS];
 static shmap_t * _stacks[MAX_PROCS];
 
 static int tmain(void * id_)
 {
   TID = (int) (intptr_t) id_;
+  PID = getpid();
+
   return 0;
 }
 
@@ -28,7 +30,8 @@ int fibril_init(int nprocs)
 {
   /** Initialize globals. */
   _nprocs = nprocs;
-  _tids[0] = getpid();
+  TID = 0;
+  PID = getpid();
 
   /** Initialize shared mappings */
   shmap_init(nprocs, _stacks);
@@ -36,7 +39,7 @@ int fibril_init(int nprocs)
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    SAFE_RETURN(_tids[i], clone(tmain, _stacks[i]->addr + _stacks[i]->size,
+    SAFE_RETURN(_pids[i], clone(tmain, _stacks[i]->addr + _stacks[i]->size,
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD, (void *) (intptr_t) i));
   }
 
@@ -50,7 +53,7 @@ int fibril_exit()
   int status;
 
   for (i = 1; i < _nprocs; ++i) {
-    SAFE_FNCALL(waitpid(_tids[i], &status, 0));
+    SAFE_FNCALL(waitpid(_pids[i], &status, 0));
     SAFE_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
   }
 

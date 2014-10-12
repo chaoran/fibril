@@ -7,6 +7,7 @@
 typedef struct _tls_t {
   struct tls {
     int tid;
+    int pid;
     void ** stacks;
     deque_t * deqs;
     deque_t deq;
@@ -19,5 +20,6 @@ typedef struct _tls_t {
 extern tls_t _tls;
 #define TLS (_tls.x)
 #define TID (_tls.x.tid)
+#define PID (_tls.x.pid)
 
 #endif /* end of include guard: TLS_H */
