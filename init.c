@@ -33,15 +33,13 @@ int fibril_init(int nprocs)
   TID = 0;
   PID = getpid();
 
-  TLS.stacks = malloc(sizeof(shmap_t * [nprocs]));
-
   /** Initialize shared mappings */
   shmap_init(nprocs);
 
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    void * stacktop = TLS.stacks[i]->addr + TLS.stacks[i]->size;
+    void * stacktop = TLS.stack.maps[i].addr + TLS.stack.size;
 
     SAFE_RETURN(_pids[i], clone(tmain, stacktop,
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,

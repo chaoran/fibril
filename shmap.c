@@ -1,13 +1,7 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <fcntl.h>
-#include <sched.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include <sys/wait.h>
 #include <sys/syscall.h>
 
 #include "tls.h"
@@ -16,7 +10,15 @@
 #include "safe.h"
 #include "sync.h"
 #include "debug.h"
-#include "shmap.h"
+#include "stack.h"
+
+typedef struct _shmap_t {
+  struct _shmap_t * next;
+  int    lock;
+  int    file;
+  void * addr;
+  size_t size;
+} shmap_t __attribute ((aligned (sizeof(void *))));
 
 char __data_start, _end;
 tls_t _tls;
@@ -69,7 +71,7 @@ static shmap_t * shmap_find(shmap_t * head, void * addr)
   return map;
 }
 
-shmap_t * shmap_add(int file, void * addr, size_t size)
+void shmap_add(int file, void * addr, size_t size)
 {
   static shmap_t maps[NUM_SHMAP_ENTRIES];
   static size_t next = 0;
@@ -119,7 +121,6 @@ shmap_t * shmap_add(int file, void * addr, size_t size)
   }
 
   sync_unlock(&prev->lock);
-  return curr;
 }
 
 int shmap_fix(void * addr)
@@ -130,7 +131,7 @@ int shmap_fix(void * addr)
   return (map->addr + map->size > addr);
 }
 
-shmap_t * shmap_map(int file, void * addr, size_t size)
+void * shmap_map(void * addr, size_t size, int file)
 {
   static int prot = PROT_READ | PROT_WRITE;
 
@@ -148,102 +149,22 @@ shmap_t * shmap_map(int file, void * addr, size_t size)
 
   addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, 0);
   SAFE_ASSERT(addr != MAP_FAILED && PAGE_DIVISIBLE((size_t) addr));
+  shmap_add(file, addr, size);
 
   DEBUG_PRINT_INFO("shmap_map: file=%d addr=%p size=%ld\n", file, addr, size);
-  return shmap_add(file, addr, size);
-}
-
-static void load_stack_attr(void ** addr, size_t * size)
-{
-  FILE * maps;
-  SAFE_RETURN(maps, fopen("/proc/self/maps", "r"));
-
-  void * start;
-  void * end;
-  char path[FILENAME_LIMIT];
-
-  while (EOF != fscanf(maps, "%p-%p %*s %*x %*d:%*d %*d %[[/]%s\n",
-        &start, &end, path, path + 1)) {
-    if (strstr(path, "[stack]")) {
-      *addr = start;
-      *size = end - start;
-
-      DEBUG_PRINT_INFO("find stack: addr=%p, size=%ld\n", *addr, *size);
-      break;
-    }
-  }
-
-  SAFE_FNCALL(fclose(maps));
+  return addr;
 }
 
 int shmap_expose(void * addr, size_t size, const char * name)
 {
   /** Map the shm to a temporary address to copy the content of the pages. */
   int    shm = shmap_new(size, name);
-  void * buf = shmap_map(shm, NULL, size)->addr;
+  void * buf = shmap_map(NULL, size, shm);
 
   memcpy(buf, addr, size);
-  shmap_map(shm, addr, size);
+  shmap_map(addr, size, shm);
   SAFE_FNCALL(munmap(buf, size));
 
-  return shm;
-}
-
-static int helper_thread(void * data)
-{
-  int  * mutex_init = ((int  * *) data)[0];
-  int  * mutex_work = ((int  * *) data)[1];
-  int  * mutex_done = ((int  * *) data)[2];
-  void * addr       = ((void * *) data)[3];
-  size_t size       = ((size_t *) data)[4];
-  int  * retptr     = ((int  * *) data)[5];
-
-  sync_lock  (mutex_done);
-  sync_unlock(mutex_init);
-  sync_lock  (mutex_work);
-
-  *retptr = shmap_expose(addr, size, "stack_0");
-
-  sync_unlock(mutex_done);
-  return 0;
-}
-
-static int share_main_stack(void * addr, size_t size)
-{
-  static int mutex_init = 0, mutex_work = 0, mutex_done = 0;
-
-  /** Create child stack. */
-  void * stack = shmap_map(-1, NULL, size)->addr;
-
-  sync_lock(&mutex_init);
-  sync_lock(&mutex_work);
-
-  int shm, tid;
-  void * data[] = {
-    &mutex_init, &mutex_work, &mutex_done, addr, (void *) size, &shm
-  };
-
-  SAFE_RETURN(tid, clone(helper_thread, stack + size,
-        CLONE_FS | CLONE_FILES | CLONE_VM | SIGCHLD, data));
-
-  /** Tell helper thread to work. */
-  sync_unlock(&mutex_work);
-
-  /** Wait until helper thread is initialized. */
-  sync_lock(&mutex_init);
-
-  /** Wait until helper thread is done. */
-  sync_lock(&mutex_done);
-
-  /** Cleanup */
-  int status;
-  SAFE_FNCALL(waitpid(tid, &status, 0));
-  SAFE_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
-  SAFE_FNCALL(munmap(stack, size));
-
-  sync_unlock(&mutex_init);
-  sync_unlock(&mutex_work);
-  sync_unlock(&mutex_done);
   return shm;
 }
 
@@ -272,27 +193,8 @@ void shmap_init(int nprocs)
     shmap_expose(tls_end, data_end - tls_end, "globals");
   }
 
-  /** Find out main stack addr and size. */
-  load_stack_attr(&TLS.stack_addr, &TLS.stack_size);
-
-  void * stack_addr = TLS.stack_addr;
-  size_t stack_size = TLS.stack_size;
-  shmap_t ** stacks = TLS.stacks;
-
-  /** Allocate stacks for everyone. */
-  int fd = share_main_stack(stack_addr, stack_size);
-  stacks[0] = shmap_map(fd, NULL, stack_size);
-
-  int i;
-  char name[FILENAME_LIMIT];
-
-  for (i = 1; i < nprocs; ++i) {
-    int len = sprintf(name, "stack_%d", i);
-    SAFE_ASSERT(len < FILENAME_LIMIT);
-
-    int fd = shmap_new(stack_size, name);
-    stacks[i] = shmap_map(fd, NULL, stack_size);
-  }
+  /** Setup stacks. */
+  stack_init(nprocs, &TLS.stack);
 }
 
 void shmap_init_child(int id)
@@ -300,7 +202,7 @@ void shmap_init_child(int id)
   /** Only child threads need to do this. */
   if (id == 0) return;
 
-  shmap_map(TLS.stacks[id]->file, TLS.stack_addr, TLS.stack_size);
+  shmap_map(TLS.stack.addr, TLS.stack.size, TLS.stack.maps[id].file);
 }
 
 /**
@@ -322,7 +224,7 @@ void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
   }
 
   addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
-  shmap_add(file, addr, size);
+  if (addr != MAP_FAILED) shmap_add(file, addr, size);
 
   DEBUG_PRINT_VERBOSE("mmap: file=%d addr=%p size=%ld\n", file, addr, size);
   return addr;
