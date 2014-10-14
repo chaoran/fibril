@@ -11,7 +11,7 @@ typedef struct _tls_t {
     int pid;
     void * stack_addr;
     size_t stack_size;
-    shmap_t * stacks;
+    shmap_t ** stacks;
     deque_t * deqs;
     deque_t deq;
   } x __attribute__ ((aligned (sizeof(void *))));
