@@ -12,12 +12,11 @@ void vtmem_init(int nprocs)
 {
   /** Make sure tls is page aligned and is a multiple pages. */
   SAFE_ASSERT(PAGE_ALIGNED(&_tls));
-  SAFE_ASSERT(PAGE_DIVISIBLE(sizeof(_tls)));
 
   void * data_start = PAGE_ALIGN_DOWN(&__data_start);
   void * data_end   = PAGE_ALIGN_UP(&_end);
   void * tls_start = &_tls;
-  void * tls_end   = (void *) &_tls + sizeof(_tls);
+  void * tls_end   = PAGE_ALIGN_UP((void *) &_tls + sizeof(_tls));
 
   /** Make sure tls is within the data segment. */
   DEBUG_PRINT_INFO("data: %p ~ %p\n", data_start, data_end);
@@ -34,7 +33,7 @@ void vtmem_init(int nprocs)
   }
 
   /** Setup stacks. */
-  stack_init(nprocs, &TLS.stack);
+  stack_init(nprocs, &_tls.stack);
 }
 
 void vtmem_init_thread(int id)
@@ -42,6 +41,6 @@ void vtmem_init_thread(int id)
   /** Only child threads need to do this. */
   if (id == 0) return;
 
-  shmap_map(TLS.stack.addr, TLS.stack.size, TLS.stack.maps[id].file);
+  shmap_map(_tls.stack.addr, _tls.stack.size, _tls.stack.maps[id].file);
 }
 

@@ -33,7 +33,7 @@ int shmap_new(size_t size, const char * name)
   }
 
   /** Append .[pid]. */
-  len += sprintf(path + len, ".%d", PID);
+  len += sprintf(path + len, ".%d", _tls.pid);
   SAFE_ASSERT(len < FILENAME_LIMIT);
 
   /** Append .[name | seqno (if anonymous) ]. */

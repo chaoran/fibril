@@ -11,6 +11,7 @@
 #include "conf.h"
 #include "safe.h"
 #include "debug.h"
+#include "deque.h"
 #include "vtmem.h"
 #include "fibril.h"
 
@@ -19,27 +20,28 @@ static int _pids[MAX_PROCS];
 
 static int tmain(void * id_)
 {
-  TID = (int) (intptr_t) id_;
-  PID = getpid();
+  _tls.tid = (int) (intptr_t) id_;
+  _tls.pid = getpid();
 
-  vtmem_init_thread(TID);
+  vtmem_init_thread(_tls.tid);
+  deque_init_thread(_tls.tid, &_tls.deque);
+
   return 0;
 }
 
 int fibril_init(int nprocs)
 {
-  /** Initialize globals. */
   _nprocs = nprocs;
-  TID = 0;
-  PID = getpid();
+  _tls.tid = 0;
+  _tls.pid = getpid();
 
-  /** Initialize shared mappings */
   vtmem_init(nprocs);
+  deque_init(nprocs, &_tls.deque);
 
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    void * stacktop = TLS.stack.maps[i].addr + TLS.stack.size;
+    void * stacktop = _tls.stack.maps[i].addr + _tls.stack.size;
 
     SAFE_RETURN(_pids[i], clone(tmain, stacktop,
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
