@@ -11,7 +11,7 @@
 #include "conf.h"
 #include "safe.h"
 #include "debug.h"
-#include "shmap.h"
+#include "vtmem.h"
 #include "fibril.h"
 
 static int _nprocs;
@@ -22,7 +22,7 @@ static int tmain(void * id_)
   TID = (int) (intptr_t) id_;
   PID = getpid();
 
-  shmap_init_child(TID);
+  vtmem_init_thread(TID);
   return 0;
 }
 
@@ -34,7 +34,7 @@ int fibril_init(int nprocs)
   PID = getpid();
 
   /** Initialize shared mappings */
-  shmap_init(nprocs);
+  vtmem_init(nprocs);
 
   /** Create workers. */
   int i;
