@@ -12,6 +12,7 @@
 #include "safe.h"
 #include "debug.h"
 #include "deque.h"
+#include "stack.h"
 #include "vtmem.h"
 #include "fibril.h"
 
@@ -23,7 +24,7 @@ static int tmain(void * id_)
   _tls.tid = (int) (intptr_t) id_;
   _tls.pid = getpid();
 
-  vtmem_init_thread(_tls.tid);
+  stack_init_thread(_tls.tid);
   deque_init_thread(_tls.tid, &_tls.deque);
 
   return 0;
@@ -36,14 +37,13 @@ int fibril_init(int nprocs)
   _tls.pid = getpid();
 
   vtmem_init(nprocs);
+  stack_init(nprocs);
   deque_init(nprocs, &_tls.deque);
 
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    void * stacktop = _tls.stack.maps[i].addr + _tls.stack.size;
-
-    SAFE_RETURN(_pids[i], clone(tmain, stacktop,
+    SAFE_RETURN(_pids[i], clone(tmain, stack_top(i),
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
           (void *) (intptr_t) i));
   }

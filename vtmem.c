@@ -3,7 +3,6 @@
 #include "page.h"
 #include "debug.h"
 #include "shmap.h"
-#include "stack.h"
 
 char __data_start, _end;
 tls_t _tls;
@@ -31,16 +30,5 @@ void vtmem_init(int nprocs)
   if (tls_end < data_end) {
     shmap_expose(tls_end, data_end - tls_end, "globals");
   }
-
-  /** Setup stacks. */
-  stack_init(nprocs, &_tls.stack);
-}
-
-void vtmem_init_thread(int id)
-{
-  /** Only child threads need to do this. */
-  if (id == 0) return;
-
-  shmap_map(_tls.stack.addr, _tls.stack.size, _tls.stack.maps[id].file);
 }
 

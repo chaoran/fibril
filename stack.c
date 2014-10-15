@@ -16,6 +16,19 @@
 #include "stack.h"
 #include "shmap.h"
 
+struct stack_map {
+  int    file;
+  void * addr;
+};
+
+typedef struct {
+  void * addr;
+  size_t size;
+  struct stack_map * maps;
+} stack_info_t;
+
+static stack_info_t _stack_info;
+
 static void load_stack_attr(void ** addr, size_t * size)
 {
   FILE * maps;
@@ -97,7 +110,7 @@ static int share_main_stack(void * addr, size_t size)
   return shm;
 }
 
-void stack_init(int nprocs, stack_info_t * info)
+void stack_init(int nprocs)
 {
   /** Find out main stack addr and size. */
   void * stack_addr;
@@ -122,8 +135,19 @@ void stack_init(int nprocs, stack_info_t * info)
     maps[i].addr = shmap_map(NULL, stack_size, maps[i].file);
   }
 
-  info->addr = stack_addr;
-  info->size = stack_size;
-  info->maps = maps;
+  _stack_info.addr = stack_addr;
+  _stack_info.size = stack_size;
+  _stack_info.maps = maps;
 }
 
+void stack_init_thread(int id)
+{
+  if (0 == id) return;
+
+  shmap_map(_stack_info.addr, _stack_info.size, _stack_info.maps[id].file);
+}
+
+void * stack_top(int id)
+{
+  return _stack_info.maps[id].addr + _stack_info.size;
+}
