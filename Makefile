@@ -10,15 +10,13 @@ INCS = fibril.h \
 			 conf.h \
 			 sync.h \
 			 stack.h \
-			 vtmem.h \
-			 deque.h
+			 vtmem.h
 
 SRCS = fib.c \
 			 init.c \
 			 shmap.c \
 			 stack.c \
-			 vtmem.c \
-			 deque.c
+			 vtmem.c
 
 HOARD_DIR = Hoard/src
 HOARD_OBJS = $(addprefix $(HOARD_DIR)/, libhoard.o unixtls.o gnuwrapper.o)

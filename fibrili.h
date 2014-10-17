@@ -1,6 +1,8 @@
 #ifndef FIBRILI_H
 #define FIBRILI_H
 
+#include "tls.h"
+
 /** Macros to count the number of variadic macro arguments. */
 #define FIBRILi_CONCAT(left, right) left##right
 #define FIBRILi_NARG(...) FIBRILi_NARG_(__VA_ARGS__, ##__VA_ARGS__, \

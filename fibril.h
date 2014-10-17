@@ -3,9 +3,9 @@
 
 #include "fibrili.h"
 
-#define FIBRIL_FORK(fcall, ...) do { \
+#define FIBRIL_FORK(retval, fcall, ...) do { \
   FIBRILi_SAVE(__VA_ARGS__) \
-  fcall; \
+  retval = fcall; \
   FIBRILi_REST(__VA_ARGS__) \
 } while (0)
 

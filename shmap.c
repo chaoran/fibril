@@ -5,54 +5,12 @@
 #include <sys/syscall.h>
 
 #include "conf.h"
-#include "page.h"
 #include "safe.h"
 #include "sync.h"
 #include "debug.h"
+#include "shmap.h"
 
-typedef struct _shmap_t {
-  struct _shmap_t * next;
-  int    lock;
-  int    file;
-  void * addr;
-  size_t size;
-} shmap_t __attribute ((aligned (sizeof(void *))));
-
-int shmap_new(size_t size, const char * name)
-{
-  static size_t suffix = 0;
-  static char prefix[] = "/fibril";
-
-  char path[FILENAME_LIMIT];
-
-  int i;
-  size_t len = sizeof(prefix) - 1;
-
-  for (i = 0; i < len; ++i) {
-    path[i] = prefix[i];
-  }
-
-  /** Append .[pid]. */
-  len += sprintf(path + len, ".%d", _tls.pid);
-  SAFE_ASSERT(len < FILENAME_LIMIT);
-
-  /** Append .[name | seqno (if anonymous) ]. */
-  if (name) {
-    len += sprintf(path + len, ".%s", name);
-  } else {
-    len += sprintf(path + len, ".%ld", sync_fadd(&suffix, 1));
-  }
-  SAFE_ASSERT(len < FILENAME_LIMIT);
-
-  int file;
-  SAFE_RETURN(file, shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
-  SAFE_FNCALL(ftruncate(file, size));
-
-  DEBUG_PRINT_INFO("shmap_new: path=%s file=%d size=%ld\n", path, file, size);
-  return file;
-}
-
-static shmap_t * shmap_find(shmap_t * head, void * addr)
+static shmap_t * find(shmap_t * head, void * addr)
 {
   static shmap_t dummy = { 0 };
 
@@ -66,7 +24,7 @@ static shmap_t * shmap_find(shmap_t * head, void * addr)
   return map;
 }
 
-void shmap_add(int file, void * addr, size_t size)
+static shmap_t * create(int file, void * addr, size_t size)
 {
   static shmap_t maps[NUM_SHMAP_ENTRIES];
   static size_t next = 0;
@@ -76,7 +34,7 @@ void shmap_add(int file, void * addr, size_t size)
 
   /** Find the mapping before the current one. */
   do {
-    prev = shmap_find(prev, addr);
+    prev = find(prev, addr);
     sync_lock(&prev->lock);
 
     if (prev->next && prev->next->addr <= addr) {
@@ -86,22 +44,30 @@ void shmap_add(int file, void * addr, size_t size)
 
   if (prev->addr == addr && prev->size == size) {
     /** Replace the previous map. */
-    prev->file = file;
+    if (prev->istl == 0) {
+      prev->file.sh = file;
+    }
+
+    /** Fill thread local map. */
+    else {
+      prev->file.tl[FIBRILi_TID] = file;
+    }
+
     curr = prev;
   } else {
     curr = &maps[sync_fadd(&next, 1)];
 
     if (prev->addr == addr && size < prev->size) {
       /** Replace the first part of the previous map. */
-      curr->file = prev->file;
+      curr->file.sh = prev->file.sh;
       curr->addr = addr + size;
       curr->size = prev->size - size;
 
-      prev->file = file;
+      prev->file.sh = file;
       prev->addr = addr;
       prev->size = size;
     } else {
-      curr->file = file;
+      curr->file.sh = file;
       curr->addr = addr;
       curr->size = size;
 
@@ -116,20 +82,53 @@ void shmap_add(int file, void * addr, size_t size)
   }
 
   sync_unlock(&prev->lock);
+  return curr;
 }
 
-int shmap_fix(void * addr)
+int shmap_open(size_t size, const char * name)
 {
-  shmap_t * map = shmap_find(NULL, addr);
-  SAFE_ASSERT(map->addr <= addr);
+  static size_t suffix = 0;
+  static char prefix[] = "/fibril";
 
-  return (map->addr + map->size > addr);
+  char path[FILENAME_LIMIT];
+  size_t len = sizeof(prefix) - 1;
+
+  strncpy(path, prefix, len);
+
+  /** Append .[pid]. */
+  len += sprintf(path + len, ".%d", FIBRILi_PID);
+  SAFE_ASSERT(len < FILENAME_LIMIT);
+
+  /** Append .[name | seqno (if anonymous) ]. */
+  if (name) {
+    len += sprintf(path + len, ".%s", name);
+  } else {
+    len += sprintf(path + len, ".%ld", sync_fadd(&suffix, 1));
+  }
+  SAFE_ASSERT(len < FILENAME_LIMIT);
+
+  int file;
+  SAFE_RETURN(file, shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
+  SAFE_FNCALL(ftruncate(file, size));
+
+  DEBUG_PRINT_INFO("shmap_open: path=%s file=%d size=%ld\n", path, file, size);
+  return file;
 }
 
-void * shmap_map(void * addr, size_t size, int file)
+shmap_t * shmap_find(void * addr)
 {
-  static int prot = PROT_READ | PROT_WRITE;
+  shmap_t * map = find(NULL, addr);
 
+  if (addr < map->addr || addr >= map->addr + map->size) {
+    return NULL;
+  }
+
+  return map;
+}
+
+shmap_t * shmap_mmap(void * addr, size_t size, int file)
+{
+  int prot = PROT_READ | PROT_WRITE;
   int flag;
 
   if (-1 == file) {
@@ -143,24 +142,21 @@ void * shmap_map(void * addr, size_t size, int file)
   }
 
   addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, 0);
-  SAFE_ASSERT(addr != MAP_FAILED && PAGE_DIVISIBLE((size_t) addr));
-  shmap_add(file, addr, size);
+  SAFE_ASSERT(addr != MAP_FAILED);
 
-  DEBUG_PRINT_INFO("shmap_map: file=%d addr=%p size=%ld\n", file, addr, size);
-  return addr;
+  DEBUG_PRINT_INFO("shmap_mmap: file=%d addr=%p size=%ld\n", file, addr, size);
+  return create(file, addr, size);
 }
 
-int shmap_expose(void * addr, size_t size, const char * name)
+shmap_t * shmap_copy(void * addr, size_t size, const char * name)
 {
   /** Map the shm to a temporary address to copy the content of the pages. */
-  int    shm = shmap_new(size, name);
-  void * buf = shmap_map(NULL, size, shm);
+  int    shm = shmap_open(size, name);
+  void * buf = shmap_mmap(NULL, size, shm)->addr;
 
   memcpy(buf, addr, size);
-  shmap_map(addr, size, shm);
   SAFE_FNCALL(munmap(buf, size));
-
-  return shm;
+  return shmap_mmap(addr, size, shm);
 }
 
 /**
@@ -177,12 +173,12 @@ void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
     if (flag & MAP_ANONYMOUS) {
       SAFE_ASSERT(file == -1);
       flag ^= MAP_ANONYMOUS;
-      file = shmap_new(size, NULL);
+      file = shmap_open(size, NULL);
     }
   }
 
   addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
-  if (addr != MAP_FAILED) shmap_add(file, addr, size);
+  if (addr != MAP_FAILED) create(file, addr, size);
 
   DEBUG_PRINT_VERBOSE("mmap: file=%d addr=%p size=%ld\n", file, addr, size);
   return addr;

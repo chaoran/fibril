@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "tls.h"
 
+#define DEBUG_TID FIBRILi_TID
+
 #ifndef ENABLE_SAFE
 #define ENABLE_SAFE
 #endif
@@ -15,7 +17,7 @@
 #endif
 
 #define DEBUG_PRINT(format, ...) do { \
-  fprintf(stderr, "[%d]: " format, _tls.tid, ## __VA_ARGS__); \
+  fprintf(stderr, "[%d]: " format, DEBUG_TID, ## __VA_ARGS__); \
   fflush(stderr); \
 } while (0)
 

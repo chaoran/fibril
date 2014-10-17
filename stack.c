@@ -14,43 +14,11 @@
 #include "sync.h"
 #include "debug.h"
 #include "stack.h"
-#include "shmap.h"
 
-struct stack_map {
-  int    file;
-  void * addr;
-};
+static void * _stack_addr;
+static size_t _stack_size;
 
-typedef struct {
-  void * addr;
-  size_t size;
-  struct stack_map * maps;
-} stack_info_t;
-
-static stack_info_t _stack_info;
-
-static void load_stack_attr(void ** addr, size_t * size)
-{
-  FILE * maps;
-  SAFE_RETURN(maps, fopen("/proc/self/maps", "r"));
-
-  void * start;
-  void * end;
-  char path[FILENAME_LIMIT];
-
-  while (EOF != fscanf(maps, "%p-%p %*s %*x %*d:%*d %*d %[[/]%s\n",
-        &start, &end, path, path + 1)) {
-    if (strstr(path, "[stack]")) {
-      *addr = start;
-      *size = end - start;
-
-      DEBUG_PRINT_INFO("find stack: addr=%p, size=%ld\n", *addr, *size);
-      break;
-    }
-  }
-
-  SAFE_FNCALL(fclose(maps));
-}
+shmap_t ** _stack_maps;
 
 static int helper_thread(void * data)
 {
@@ -59,31 +27,35 @@ static int helper_thread(void * data)
   int  * mutex_done = ((int  * *) data)[2];
   void * addr       = ((void * *) data)[3];
   size_t size       = ((size_t *) data)[4];
-  int  * retptr     = ((int  * *) data)[5];
+  shmap_t ** map    = ((shmap_t ***) data)[5];
 
   sync_lock  (mutex_done);
   sync_unlock(mutex_init);
   sync_lock  (mutex_work);
 
-  *retptr = shmap_expose(addr, size, "stack_0");
+  *map = shmap_copy(addr, size, "stack");
 
   sync_unlock(mutex_done);
   return 0;
 }
 
-static int share_main_stack(void * addr, size_t size)
+shmap_t * stack_copy(void * addr, size_t size)
 {
-  static int mutex_init = 0, mutex_work = 0, mutex_done = 0;
+  static int mutex_init = 0;
+  static int mutex_work = 0;
+  static int mutex_done = 0;
 
-  /** Create child stack. */
-  void * stack = shmap_map(NULL, size, -1);
+  /** Create child stack.*/
+  void * stack = malloc(size);
 
   sync_lock(&mutex_init);
   sync_lock(&mutex_work);
 
-  int shm, tid;
+  int tid;
+  shmap_t * map;
+
   void * data[] = {
-    &mutex_init, &mutex_work, &mutex_done, addr, (void *) size, &shm
+    &mutex_init, &mutex_work, &mutex_done, addr, (void *)size, &map
   };
 
   SAFE_RETURN(tid, clone(helper_thread, stack + size,
@@ -102,52 +74,50 @@ static int share_main_stack(void * addr, size_t size)
   int status;
   SAFE_FNCALL(waitpid(tid, &status, 0));
   SAFE_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
-  SAFE_FNCALL(munmap(stack, size));
+  free(stack);
 
   sync_unlock(&mutex_init);
   sync_unlock(&mutex_work);
   sync_unlock(&mutex_done);
-  return shm;
-}
 
-void stack_init(int nprocs)
-{
-  /** Find out main stack addr and size. */
-  void * stack_addr;
-  size_t stack_size;
-
-  load_stack_attr(&stack_addr, &stack_size);
-
-  struct stack_map * maps = malloc(sizeof(struct stack_map [nprocs]));
-
-  /** Allocate stacks for everyone. */
-  maps[0].file = share_main_stack(stack_addr, stack_size);
-  maps[0].addr = shmap_map(NULL, stack_size, maps[0].file);
-
-  int i;
-  char name[FILENAME_LIMIT];
-
-  for (i = 1; i < nprocs; ++i) {
-    int len = sprintf(name, "stack_%d", i);
-    SAFE_ASSERT(len < FILENAME_LIMIT);
-
-    maps[i].file = shmap_new(stack_size, name);
-    maps[i].addr = shmap_map(NULL, stack_size, maps[i].file);
-  }
-
-  _stack_info.addr = stack_addr;
-  _stack_info.size = stack_size;
-  _stack_info.maps = maps;
-}
-
-void stack_init_thread(int id)
-{
-  if (0 == id) return;
-
-  shmap_map(_stack_info.addr, _stack_info.size, _stack_info.maps[id].file);
+  return map;
 }
 
 void * stack_top(int id)
 {
-  return _stack_info.maps[id].addr + _stack_info.size;
+  return _stack_maps[id]->addr + _stack_maps[id]->size;
 }
+
+void stack_range(void ** addr, size_t * size)
+{
+  if (_stack_addr && _stack_size) {
+    *addr = _stack_addr;
+    *size = _stack_size;
+
+    return;
+  }
+
+  FILE * maps;
+  SAFE_RETURN(maps, fopen("/proc/self/maps", "r"));
+
+  void * start;
+  void * end;
+  char path[FILENAME_LIMIT];
+
+  while (EOF != fscanf(maps, "%p-%p %*s %*x %*d:%*d %*d %[[/]%s\n",
+        &start, &end, path, path + 1)) {
+    if (strstr(path, "[stack]")) {
+      *addr = start;
+      *size = end - start;
+
+      DEBUG_PRINT_INFO("stack: addr=%p, size=%ld\n", *addr, *size);
+      break;
+    }
+  }
+
+  SAFE_FNCALL(fclose(maps));
+
+  _stack_addr = *addr;
+  _stack_size = *size;
+}
+

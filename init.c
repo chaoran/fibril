@@ -11,34 +11,28 @@
 #include "conf.h"
 #include "safe.h"
 #include "debug.h"
-#include "deque.h"
 #include "stack.h"
 #include "vtmem.h"
 #include "fibril.h"
 
-static int _nprocs;
+int _nprocs;
 static int _pids[MAX_PROCS];
+
+#define TID FIBRILi_TID
+#define PID FIBRILi_PID
 
 static int tmain(void * id_)
 {
-  _tls.tid = (int) (intptr_t) id_;
-  _tls.pid = getpid();
+  int id = (int) (intptr_t) id_;
 
-  stack_init_thread(_tls.tid);
-  deque_init_thread(_tls.tid, &_tls.deque);
-
+  vtmem_init_thread(id);
   return 0;
 }
 
 int fibril_init(int nprocs)
 {
   _nprocs = nprocs;
-  _tls.tid = 0;
-  _tls.pid = getpid();
-
   vtmem_init(nprocs);
-  stack_init(nprocs);
-  deque_init(nprocs, &_tls.deque);
 
   /** Create workers. */
   int i;
@@ -46,6 +40,8 @@ int fibril_init(int nprocs)
     SAFE_RETURN(_pids[i], clone(tmain, stack_top(i),
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
           (void *) (intptr_t) i));
+    DEBUG_PRINT_INFO("clone: tid=%d pid=%d stack_top=%p\n",
+        i, _pids[i], stack_top(i));
   }
 
   tmain((void *) 0);

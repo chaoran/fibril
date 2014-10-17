@@ -9,9 +9,11 @@
 #include <assert.h>
 #include "tls.h"
 
+#define SAFE_TID FIBRILi_TID
+
 #define SAFE_ASSERT(cond) do { \
   if (!(cond)) { \
-    fprintf(stderr, "[%d]: assertion failed: " # cond "\n", _tls.tid); \
+    fprintf(stderr, "[%d]: assertion failed: " # cond "\n", SAFE_TID); \
     fflush(stderr); \
     abort(); \
   } \

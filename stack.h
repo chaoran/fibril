@@ -1,8 +1,11 @@
 #ifndef STACK_H
 #define STACK_H
 
-void stack_init(int nprocs);
-void stack_init_thread(int id);
+#include <stddef.h>
+#include "shmap.h"
+
+void stack_range(void ** addr, size_t * size);
 void * stack_top(int id);
+shmap_t * stack_copy(void * addr, size_t size);
 
 #endif /* end of include guard: STACK_H */
