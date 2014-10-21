@@ -7,9 +7,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
-#include "tls.h"
 
-#define SAFE_TID FIBRILi_TID
+#include "fibrile.h"
+
+#define SAFE_TID FIBRILe_TID
 
 #define SAFE_ASSERT(cond) do { \
   if (!(cond)) { \

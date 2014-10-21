@@ -4,9 +4,9 @@
 #ifdef ENABLE_DEBUG
 
 #include <stdio.h>
-#include "tls.h"
+#include "fibrile.h"
 
-#define DEBUG_TID FIBRILi_TID
+#define DEBUG_TID FIBRILe_TID
 
 #ifndef ENABLE_SAFE
 #define ENABLE_SAFE

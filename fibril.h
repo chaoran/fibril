@@ -1,12 +1,12 @@
 #ifndef FIBRIL_H
 #define FIBRIL_H
 
-#include "fibrili.h"
+#include "fibrile.h"
 
 #define FIBRIL_FORK(retval, fcall, ...) do { \
-  FIBRILi_SAVE(__VA_ARGS__) \
+  FIBRILe_SAVE(__VA_ARGS__) \
   retval = fcall; \
-  FIBRILi_REST(__VA_ARGS__) \
+  FIBRILe_REST(__VA_ARGS__) \
 } while (0)
 
 int fibril_init(int nprocs);
