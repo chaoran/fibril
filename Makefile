@@ -4,19 +4,23 @@ LDLIBS = -lrt -lstdc++ -lm -ldl
 
 EXEC = fib
 
-INCS = fibril.h \
+INCS = \
+			 conf.h \
+			 fibril.h \
+			 fibrile.h \
+			 fibrili.h \
 			 page.h \
 			 shmap.h \
-			 conf.h \
-			 sync.h \
 			 stack.h \
-			 vtmem.h
+			 sync.h \
+			 synce.h \
 
-SRCS = fib.c \
+SRCS = \
+			 fib.c \
 			 init.c \
+			 exit.c \
 			 shmap.c \
 			 stack.c \
-			 vtmem.c
 
 HOARD_DIR = Hoard/src
 HOARD_OBJS = $(addprefix $(HOARD_DIR)/, libhoard.o unixtls.o gnuwrapper.o)

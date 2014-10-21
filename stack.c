@@ -13,12 +13,13 @@
 #include "safe.h"
 #include "sync.h"
 #include "debug.h"
+#include "shmap.h"
 #include "stack.h"
 
 static void * _stack_addr;
 static size_t _stack_size;
-
-shmap_t ** _stack_maps;
+static void ** _stack_addrs;
+static int  *  _stack_files;
 
 static int helper_thread(void * data)
 {
@@ -27,19 +28,19 @@ static int helper_thread(void * data)
   int  * mutex_done = ((int  * *) data)[2];
   void * addr       = ((void * *) data)[3];
   size_t size       = ((size_t *) data)[4];
-  shmap_t ** map    = ((shmap_t ***) data)[5];
+  int  * file       = ((int  * *) data)[5];
 
   sync_lock  (mutex_done);
   sync_unlock(mutex_init);
   sync_lock  (mutex_work);
 
-  *map = shmap_copy(addr, size, "stack");
+  *file = shmap_copy(addr, size, "stack");
 
   sync_unlock(mutex_done);
   return 0;
 }
 
-shmap_t * stack_copy(void * addr, size_t size)
+static int copy_stack(void * addr, size_t size)
 {
   static int mutex_init = 0;
   static int mutex_work = 0;
@@ -51,11 +52,9 @@ shmap_t * stack_copy(void * addr, size_t size)
   sync_lock(&mutex_init);
   sync_lock(&mutex_work);
 
-  int tid;
-  shmap_t * map;
-
+  int tid, file;
   void * data[] = {
-    &mutex_init, &mutex_work, &mutex_done, addr, (void *)size, &map
+    &mutex_init, &mutex_work, &mutex_done, addr, (void *)size, &file
   };
 
   SAFE_RETURN(tid, clone(helper_thread, stack + size,
@@ -80,23 +79,11 @@ shmap_t * stack_copy(void * addr, size_t size)
   sync_unlock(&mutex_work);
   sync_unlock(&mutex_done);
 
-  return map;
+  return file;
 }
 
-void * stack_top(int id)
+static void find_stack(void ** addr, size_t * size)
 {
-  return _stack_maps[id]->addr + _stack_maps[id]->size;
-}
-
-void stack_range(void ** addr, size_t * size)
-{
-  if (_stack_addr && _stack_size) {
-    *addr = _stack_addr;
-    *size = _stack_size;
-
-    return;
-  }
-
   FILE * maps;
   SAFE_RETURN(maps, fopen("/proc/self/maps", "r"));
 
@@ -116,8 +103,36 @@ void stack_range(void ** addr, size_t * size)
   }
 
   SAFE_FNCALL(fclose(maps));
+}
 
-  _stack_addr = *addr;
-  _stack_size = *size;
+void stack_init(int nprocs)
+{
+  find_stack(&_stack_addr, &_stack_size);
+
+  _stack_addrs = malloc(sizeof(void * [nprocs]));
+  _stack_files = malloc(sizeof(int [nprocs]));
+
+  _stack_files[0] = copy_stack(_stack_addr, _stack_size);
+  _stack_addrs[0] = shmap_mmap(NULL, _stack_size, _stack_files[0]);
+
+  char path[FILENAME_LIMIT];
+  int i;
+
+  for (i = 1; i < nprocs; ++i) {
+    sprintf(path, "%s_%d", "stack", i);
+    _stack_files[i] = shmap_open(_stack_size, path);
+    _stack_addrs[i] = shmap_mmap(NULL, _stack_size, _stack_files[i]);
+  }
+}
+
+void stack_init_child(int id)
+{
+  SAFE_ASSERT(id != 0);
+  shmap_mmap(_stack_addr, _stack_size, _stack_files[id]);
+}
+
+void * stack_top(int id)
+{
+  return _stack_addrs[id] + _stack_size;
 }
 
