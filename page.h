@@ -2,8 +2,8 @@
 #define PAGE_H
 
 #include <stddef.h>
+#include "conf.h"
 
-#define PAGE_SIZE      4096ULL
 #define PAGE_SIZE_MASK (PAGE_SIZE - 1)
 
 #define PAGE_ALIGN_DOWN(x) (\

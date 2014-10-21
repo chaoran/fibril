@@ -1,6 +1,7 @@
 #ifndef CONF_H
 #define CONF_H
 
+#define PAGE_SIZE 4096ULL
 #define MAX_PROCS 256
 #define STACK_SIZE 8 * 1024 * 1024
 #define FILENAME_LIMIT 256
