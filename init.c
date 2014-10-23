@@ -18,10 +18,12 @@
 #include "fibrili.h"
 
 int _pids[MAX_PROCS];
+int _nprocs;
+void ** _stacks;
+
 char __data_start, _end;
 tls_t _tls;
 
-static int _nprocs;
 static int _barrier;
 static int _tlss[MAX_PROCS];
 
@@ -94,14 +96,19 @@ int fibril_init(int nprocs)
   globe_init(nprocs);
   stack_init(nprocs);
 
+  _stacks = malloc(sizeof(void * [nprocs]));
+  _stacks[0] = stack_alloc();
+
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    SAFE_RETURN(_pids[i], clone(child_main, stack_top(i),
+    _stacks[i] = stack_alloc();
+
+    SAFE_RETURN(_pids[i], clone(child_main, _stacks[i],
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
           (void *) (intptr_t) i));
-    DEBUG_PRINT_INFO("clone: tid=%d pid=%d stack_top=%p\n",
-        i, _pids[i], stack_top(i));
+    DEBUG_PRINT_INFO("clone: tid=%d pid=%d stack=%p\n",
+        i, _pids[i], _stacks[i]);
   }
 
   tls_init(0);

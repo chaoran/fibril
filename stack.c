@@ -46,9 +46,6 @@ static int copy_stack(void * addr, size_t size)
   static int mutex_work = 0;
   static int mutex_done = 0;
 
-  /** Create child stack.*/
-  void * stack = malloc(size);
-
   sync_lock(&mutex_init);
   sync_lock(&mutex_work);
 
@@ -57,7 +54,9 @@ static int copy_stack(void * addr, size_t size)
     &mutex_init, &mutex_work, &mutex_done, addr, (void *)size, &file
   };
 
-  SAFE_RETURN(tid, clone(helper_thread, stack + size,
+  /** Create child stack.*/
+  void * stack = stack_alloc();
+  SAFE_RETURN(tid, clone(helper_thread, stack,
         CLONE_FS | CLONE_FILES | CLONE_VM | SIGCHLD, data));
 
   /** Tell helper thread to work. */
@@ -73,7 +72,7 @@ static int copy_stack(void * addr, size_t size)
   int status;
   SAFE_FNCALL(waitpid(tid, &status, 0));
   SAFE_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
-  free(stack);
+  stack_free(stack);
 
   sync_unlock(&mutex_init);
   sync_unlock(&mutex_work);
@@ -134,5 +133,16 @@ void stack_init_child(int id)
 void * stack_top(int id)
 {
   return _stack_addrs[id] + _stack_size;
+}
+
+void * stack_alloc()
+{
+  void * stack = malloc(_stack_size);
+  return stack + _stack_size;
+}
+
+void stack_free(void * top)
+{
+  free(top - _stack_size);
 }
 
