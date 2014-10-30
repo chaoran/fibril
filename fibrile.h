@@ -1,110 +1,113 @@
 #ifndef FIBRILE_H
 #define FIBRILE_H
 
-#include "conf.h"
+#include <stddef.h>
 
-#define FIBRILe(xxx) FIBRILe_##xxx
+struct _fibril_t;
 
-/** Types. */
-typedef struct FIBRILe(_deque_t) {
-  int lock;
-  void ** head;
-  void ** tail;
-  void *  join;
-} FIBRILe(deque_t);
+typedef struct {
+  void * addr;
+  size_t size;
+} fibrile_data_t;
 
-typedef struct FIBRILe(_tls_t) {
-  struct _x {
-    FIBRILe(deque_t) deq;
+extern __attribute__ ((noinline)) int
+_fibril_join(struct _fibril_t * frptr);
+
+extern __attribute__ ((noreturn)) int
+fibrile_join(const struct _fibril_t *, const fibrile_data_t *, size_t);
+
+#include "fibril.h"
+
+#define FIBRILE_PAGE_SIZE (4096ULL)
+#define FIBRILE_TLS_SIZE  (2 * FIBRILE_PAGE_SIZE)
+#define FIBRILE_PTR_SIZE  (sizeof(void *))
+
+typedef struct {
+  struct _fibrile_deque_t {
     int tid;
     int pid;
-    struct FIBRILe(_tls_t) ** tls;
-  } x __attribute__((aligned (sizeof(void *))));
-  void *  buff[
-    (NUM_TLS_PAGES * PAGE_SIZE - sizeof(struct _x)) / sizeof(void *)
+    int lock;
+    int head;
+    int tail;
+    void * base;
+    struct _fibrile_deque_t **  deqs;
+  } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
+  fibril_t * buff[
+    (FIBRILE_TLS_SIZE - sizeof(struct _fibrile_deque_t)) / FIBRILE_PTR_SIZE
   ];
-} FIBRILe(tls_t) __attribute__((aligned (PAGE_SIZE)));
+} fibrile_tls_t __attribute__((aligned (FIBRILE_PAGE_SIZE)));
 
-/** Variables. */
-extern FIBRILe(tls_t) FIBRILe(tls);
-#define FIBRILe_TLS (FIBRILe(tls))
-#define FIBRILe_TID (FIBRILe(tls).x.tid)
-#define FIBRILe_PID (FIBRILe(tls).x.pid)
-#define FIBRILe_DEQ (FIBRILe(tls).x.deq)
+extern fibrile_tls_t fibrile_tls;
+#define fibrile_deq (fibrile_tls.deq)
 
-/** Macros. */
-#include "synce.h"
+#include "debug.h"
 
-static inline void FIBRILe(push)()
+extern inline void __attribute__ ((always_inline))
+fibrile_save(fibril_t * frptr, void * rip)
 {
-  void * stptr;
-  asm volatile ( "mov %%rsp, %0" : "=g" (stptr) : : ); \
-
-  *FIBRILe_DEQ.tail++ = stptr;
+  __asm__ (
+      "mov\t%%rbp,%0\n\t"
+      "mov\t%%rbx,%1\n\t"
+      "mov\t%%r12,%2\n\t"
+      "mov\t%%r13,%3\n\t"
+      "mov\t%%r14,%4\n\t"
+      "mov\t%%r15,%5\n\t"
+      "movq\t%7,%6" :
+      "=m" (frptr->rbp), "=m" (frptr->rbx),
+      "=m" (frptr->r12), "=m" (frptr->r13),
+      "=m" (frptr->r14), "=m" (frptr->r15),
+      "=m" (frptr->rip) : "ir" (rip)
+  );
 }
 
-static inline int FIBRILe(pop)()
+static inline void fibrile_push(fibril_t * frptr)
 {
-  void ** tail = --FIBRILe_DEQ.tail;
-  FIBRILe_fence();
+  fibrile_tls.buff[fibrile_tls.deq.tail++] = frptr;
+  DEBUG_PRINTV("push: frptr=%p rsp=%p rip=%p\n", frptr, frptr->rsp, frptr->rip);
+}
 
-  if (FIBRILe_DEQ.head > tail) {
-    FIBRILe_DEQ.tail++;
+#define fibrile_fence() __sync_synchronize()
+#define fibrile_lock(ptr) while (__sync_lock_test_and_set(ptr, 1))
+#define fibrile_unlock(ptr) __sync_lock_release(ptr)
 
-    FIBRILe_lock(&FIBRILe_DEQ.lock);
-    tail = --FIBRILe_DEQ.tail;
+static inline int fibrile_pop()
+{
+  int T = fibrile_deq.tail;
 
-    if (FIBRILe_DEQ.head > tail) {
-      FIBRILe_DEQ.tail++;
-      FIBRILe_unlock(&FIBRILe_DEQ.lock);
+  if (T == 0) return 0;
+
+  fibrile_deq.tail = --T;
+
+  fibrile_fence();
+  int H = fibrile_deq.head;
+
+  if (H > T) {
+    fibrile_deq.tail = T + 1;
+
+    fibrile_lock(&fibrile_deq.lock);
+    H = fibrile_deq.head;
+
+    if (H > T) {
+      fibrile_deq.head = 0;
+      fibrile_deq.tail = 0;
+
+      fibrile_unlock(&fibrile_deq.lock);
       return 0;
     }
 
-    FIBRILe_unlock(&FIBRILe_DEQ.lock);
+    fibrile_deq.tail = T;
+    fibrile_unlock(&fibrile_deq.lock);
   }
 
   return 1;
 }
 
 /** Macros to count the number of variadic macro arguments. */
-#define FIBRILe_CONCAT(left, right) left##right
-#define FIBRILe_NARG(...) FIBRILe_NARG_(__VA_ARGS__, ##__VA_ARGS__, \
+#define FIBRILE_CONCAT(left, right) left##right
+#define FIBRILE_NARG(...) FIBRILE_NARG_(__VA_ARGS__, ##__VA_ARGS__, \
     8, 8, 7, 7, 6, 6, 5, 5, 4, 4, 3, 3, 2, 2, 1, 0)
-#define FIBRILe_NARG_(...) FIBRILe_ARG_N(__VA_ARGS__)
-#define FIBRILe_ARG_N(_1, _11, _2, _22, _3, _33, _4, _44, _5, _55, \
+#define FIBRILE_NARG_(...) FIBRILE_ARG_N(__VA_ARGS__)
+#define FIBRILE_ARG_N(_1, _11, _2, _22, _3, _33, _4, _44, _5, _55, \
     _6, _66, _7, _77, _8, _88, N, ...) N
-
-/** FIBRILe_SAVE */
-#define FIBRILe_SAVE(...) \
-  FIBRILe_SAVE_(FIBRILe_NARG(__VA_ARGS__), ##__VA_ARGS__)
-#define FIBRILe_SAVE_(N, ...) \
-  FIBRILe_CONCAT(FIBRILe_SAVE_, N)(__VA_ARGS__)
-#define FIBRILe_SAVE_d(type, var) type volatile _fr_##var
-#define FIBRILe_SAVE_v(type, var) var
-#define FIBRILe_SAVE_s(var) FIBRILe_SAVE_d var = FIBRILe_SAVE_v var;
-#define FIBRILe_SAVE_0(...)
-#define FIBRILe_SAVE_1(var, ...) FIBRILe_SAVE_s(var)
-#define FIBRILe_SAVE_2(var, ...) FIBRILe_SAVE_s(var) FIBRILe_SAVE_1(__VA_ARGS__)
-#define FIBRILe_SAVE_3(var, ...) FIBRILe_SAVE_s(var) FIBRILe_SAVE_2(__VA_ARGS__)
-#define FIBRILe_SAVE_4(var, ...) FIBRILe_SAVE_s(var) FIBRILe_SAVE_3(__VA_ARGS__)
-#define FIBRILe_SAVE_5(var, ...) FIBRILe_SAVE_s(var) FIBRILe_SAVE_4(__VA_ARGS__)
-#define FIBRILe_SAVE_6(var, ...) FIBRILe_SAVE_s(var) FIBRILe_SAVE_5(__VA_ARGS__)
-#define FIBRILe_SAVE_7(var, ...) FIBRILe_SAVE_s(var) FIBRILe_SAVE_6(__VA_ARGS__)
-
-/** FIBRILe_REST */
-#define FIBRILe_REST(...) \
-  FIBRILe_REST_(FIBRILe_NARG(__VA_ARGS__), ##__VA_ARGS__)
-#define FIBRILe_REST_(N, ...) \
-  FIBRILe_CONCAT(FIBRILe_REST_, N)(__VA_ARGS__)
-#define FIBRILe_REST_a(type, var) var = _fr_##var
-#define FIBRILe_REST_s(var) FIBRILe_REST_a var;
-#define FIBRILe_REST_0(...)
-#define FIBRILe_REST_1(var, ...) FIBRILe_REST_s(var)
-#define FIBRILe_REST_2(var, ...) FIBRILe_REST_s(var) FIBRILe_REST_1(__VA_ARGS__)
-#define FIBRILe_REST_3(var, ...) FIBRILe_REST_s(var) FIBRILe_REST_2(__VA_ARGS__)
-#define FIBRILe_REST_4(var, ...) FIBRILe_REST_s(var) FIBRILe_REST_3(__VA_ARGS__)
-#define FIBRILe_REST_5(var, ...) FIBRILe_REST_s(var) FIBRILe_REST_4(__VA_ARGS__)
-#define FIBRILe_REST_6(var, ...) FIBRILe_REST_s(var) FIBRILe_REST_5(__VA_ARGS__)
-#define FIBRILe_REST_7(var, ...) FIBRILe_REST_s(var) FIBRILe_REST_6(__VA_ARGS__)
 
 #endif /* end of include guard: FIBRILE_H */

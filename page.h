@@ -2,7 +2,7 @@
 #define PAGE_H
 
 #include <stddef.h>
-#include "conf.h"
+#include "config.h"
 
 #define PAGE_SIZE_MASK (PAGE_SIZE - 1)
 

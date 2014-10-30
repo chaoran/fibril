@@ -4,41 +4,42 @@
 
 #include <sched.h>
 #include <signal.h>
-#include <stdint.h>
 #include <unistd.h>
 
-#include "conf.h"
+#include "tls.h"
 #include "page.h"
 #include "safe.h"
-#include "sync.h"
+#include "util.h"
 #include "debug.h"
+#include "sched.h"
 #include "stack.h"
 #include "shmap.h"
-#include "fibril.h"
 #include "fibrili.h"
-
-int _pids[MAX_PROCS];
-int _nprocs;
-void ** _stacks;
 
 char __data_start, _end;
 tls_t _tls;
 
-static int _barrier;
-static int _tlss[MAX_PROCS];
+int     _nprocs;
+int     _barrier;
+int  *  _pids;
+void ** _stacks;
+
+static int * _tls_files;
 
 static void globe_init(int nprocs)
 {
+  shmap_init(nprocs);
+
   void * dat_start = PAGE_ALIGN_DOWN(&__data_start);
   void * dat_end   = PAGE_ALIGN_UP(&_end);
 
-  DEBUG_PRINT_INFO("data: %p ~ %p\n", dat_start, dat_end);
+  DEBUG_PRINTI("data: %p ~ %p\n", dat_start, dat_end);
   SAFE_ASSERT(PAGE_ALIGNED(dat_start) && PAGE_ALIGNED(dat_end));
 
   void * tls_start = &_tls;
   void * tls_end   = tls_start + sizeof(_tls);
 
-  DEBUG_PRINT_INFO("tls: %p ~ %p\n", tls_start, tls_end);
+  DEBUG_PRINTI("tls: %p ~ %p\n", tls_start, tls_end);
   SAFE_ASSERT(PAGE_ALIGNED(tls_start) && PAGE_ALIGNED(tls_end));
 
   if (dat_start < tls_start) {
@@ -59,32 +60,38 @@ static void tls_init(int id)
   size_t size = sizeof(_tls);
 
   int file = shmap_copy(addr, size, path);
-  _tlss[id] = file;
+  _tls_files[id] = file;
 
-  sync_barrier(&_barrier, _nprocs);
+  barrier(&_barrier, _nprocs);
 
-  tls_t ** addrs = malloc(sizeof(tls_t * [_nprocs]));
+  _deq.deqs = malloc(sizeof(tls_t *) * _nprocs);
 
   int i;
   for (i = 0; i < _nprocs; ++i) {
     if (i != id) {
-      addrs[i] = shmap_mmap(NULL, size, _tlss[i]);
+      _deq.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
     }
   }
-
-  _tls.x.tls = addrs;
 }
 
 static int child_main(void * id_)
 {
-  int id = (int) (intptr_t) id_;
+  int id = (int) (size_t) id_;
 
   _tid = id;
   _pid = getpid();
 
   tls_init(id);
   stack_init_child(id);
+
+  while (SCHED_DONE != sched_work());
   return 0;
+}
+
+static void parent_main(void * stptr)
+{
+  tls_init(0);
+  STACK_EXECUTE(stptr, while(SCHED_DONE != sched_work()));
 }
 
 int fibril_init(int nprocs)
@@ -92,26 +99,29 @@ int fibril_init(int nprocs)
   _tid = 0;
   _pid = getpid();
   _nprocs = nprocs;
+  _pids = malloc(sizeof(int) * nprocs);
+  _stacks = malloc(sizeof(void *) * nprocs);
 
   globe_init(nprocs);
   stack_init(nprocs);
 
-  _stacks = malloc(sizeof(void * [nprocs]));
-  _stacks[0] = stack_alloc();
+  _tls_files = malloc(sizeof(int) * nprocs);
 
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    _stacks[i] = stack_alloc();
+    _stacks[i] = stack_new(NULL);
 
     SAFE_RETURN(_pids[i], clone(child_main, _stacks[i],
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
-          (void *) (intptr_t) i));
-    DEBUG_PRINT_INFO("clone: tid=%d pid=%d stack=%p\n",
-        i, _pids[i], _stacks[i]);
+          (void *) (size_t) i));
+    DEBUG_PRINTI("clone: tid=%d pid=%d stack=%p\n", i, _pids[i], _stacks[i]);
   }
 
-  tls_init(0);
-  return FIBRIL_SUCCESS;
+  _stacks[0] = stack_new(NULL);
+  parent_main(_stacks[0]);
+
+  free(_tls_files);
+  return 0;
 }
 

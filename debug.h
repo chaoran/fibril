@@ -4,13 +4,10 @@
 #ifdef ENABLE_DEBUG
 
 #include <stdio.h>
-#include "fibrile.h"
+//#include "tls.h"
 
-#define DEBUG_TID FIBRILe_TID
-
-#ifndef ENABLE_SAFE
-#define ENABLE_SAFE
-#endif
+#define DEBUG_TID fibrile_deq.tid
+#define DEBUG_PID fibrile_deq.pid
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0
@@ -21,33 +18,33 @@
   fflush(stderr); \
 } while (0)
 
-/** Enable DEBUG_PRINT_IMPORTANT if DEBUG_LEVEL > 0 */
+/** Enable DEBUG_PRINTC if DEBUG_LEVEL > 0 */
 #if DEBUG_LEVEL > 0
-#define DEBUG_PRINT_IMPORTANT DEBUG_PRINT
+#define DEBUG_PRINTC DEBUG_PRINT
 #else
-#define DEBUG_PRINT_IMPORTANT(...)
+#define DEBUG_PRINTC(...)
 #endif
 
-/** Enable DEBUG_PRINT_INFO if DEBUG_LEVEL > 1 */
+/** Enable DEBUG_PRINTI if DEBUG_LEVEL > 1 */
 #if DEBUG_LEVEL > 1
-#define DEBUG_PRINT_INFO DEBUG_PRINT
+#define DEBUG_PRINTI DEBUG_PRINT
 #else
-#define DEBUG_PRINT_INFO(...)
+#define DEBUG_PRINTI(...)
 #endif
 
-/** Enable DEBUG_PRINT_VERBOSE if DEBUG_LEVEL > 2 */
+/** Enable DEBUG_PRINTV if DEBUG_LEVEL > 2 */
 #if DEBUG_LEVEL > 2
-#define DEBUG_PRINT_VERBOSE DEBUG_PRINT
+#define DEBUG_PRINTV DEBUG_PRINT
 #else
-#define DEBUG_PRINT_VERBOSE(...)
+#define DEBUG_PRINTV(...)
 #endif
 
 #else /** ifndef ENABLE_DEBUG */
 
 #define DEBUG_PRINT(...)
-#define DEBUG_PRINT_IMPORTANT(...)
-#define DEBUG_PRINT_INFO(...)
-#define DEBUG_PRINT_VERBOSE(...)
+#define DEBUG_PRINTC(...)
+#define DEBUG_PRINTI(...)
+#define DEBUG_PRINTV(...)
 
 #endif
 

@@ -5,20 +5,26 @@ LDLIBS = -lrt -lstdc++ -lm -ldl
 EXEC = fib
 
 INCS = \
-			 conf.h \
+			 config.h \
+			 debug.h \
 			 fibril.h \
 			 fibrile.h \
 			 fibrili.h \
 			 page.h \
+			 safe.h \
+			 sched.h \
 			 shmap.h \
 			 stack.h \
-			 sync.h \
-			 synce.h \
+			 tls.h \
+			 util.h \
+			 vtmem.h \
 
 SRCS = \
+			 exit.c \
 			 fib.c \
 			 init.c \
-			 exit.c \
+			 join.c \
+			 sched.c \
 			 shmap.c \
 			 stack.c \
 

@@ -5,16 +5,18 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#include "conf.h"
+#include "tls.h"
 #include "safe.h"
-#include "sync.h"
+#include "util.h"
 #include "debug.h"
+#include "config.h"
 #include "fibrili.h"
 
 typedef struct _shmap_t {
   struct _shmap_t * next;
   void * addr;
   size_t size;
+  off_t  off;
   union {
     int   sh;
     int * tl;
@@ -23,7 +25,6 @@ typedef struct _shmap_t {
   int    lock;
 } shmap_t __attribute ((aligned (sizeof(void *))));
 
-static int _nprocs;
 static struct sigaction _default_sa;
 
 static shmap_t * find(shmap_t * head, void * addr)
@@ -37,12 +38,13 @@ static shmap_t * find(shmap_t * head, void * addr)
     map = next;
   }
 
+  SAFE_ASSERT(map != NULL);
   return map;
 }
 
-static void create(int file, void * addr, size_t size)
+static void create(void * addr, size_t size, int file, off_t off)
 {
-  static shmap_t maps[NUM_SHMAP_ENTRIES];
+  static shmap_t maps[N_SHMAP_ENTRIES];
   static size_t next = 0;
 
   shmap_t * prev = NULL;
@@ -51,10 +53,10 @@ static void create(int file, void * addr, size_t size)
   /** Find the mapping before the current one. */
   do {
     prev = find(prev, addr);
-    sync_lock(&prev->lock);
+    lock(&prev->lock);
 
     if (prev->next && prev->next->addr <= addr) {
-      sync_unlock(&prev->lock);
+      unlock(&prev->lock);
     } else break;
   } while (1);
 
@@ -79,9 +81,9 @@ static void create(int file, void * addr, size_t size)
       prev->otid = -1;
     }
 
-    curr = prev;
+    prev->off = off;
   } else {
-    curr = &maps[sync_fadd(&next, 1)];
+    curr = &maps[fadd(&next, 1)];
 
     if (prev->addr == addr && size < prev->size) {
       /** Replace the first part of the previous map. */
@@ -103,14 +105,15 @@ static void create(int file, void * addr, size_t size)
       }
     }
 
+    curr->off = off;
     curr->next = prev->next;
     prev->next = curr;
   }
 
-  sync_unlock(&prev->lock);
+  unlock(&prev->lock);
 }
 
-static void * shmap(void * addr, size_t size, int file)
+static void * shmap(void * addr, size_t size, int file, off_t off)
 {
   static int prot = PROT_READ | PROT_WRITE;
   int flag = MAP_SHARED;
@@ -119,7 +122,10 @@ static void * shmap(void * addr, size_t size, int file)
     flag |= MAP_FIXED;
   }
 
-  addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, 0);
+  addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
+
+  DEBUG_PRINTV("shmap: file=%d addr=%p size=%ld off=%ld\n",
+      file, addr, size, off);
   SAFE_ASSERT(addr != MAP_FAILED);
 
   return addr;
@@ -132,13 +138,14 @@ static void segfault_sa(int signum, siginfo_t * info, void * ctxt)
   void * addr = info->si_addr;
   shmap_t * map = find(NULL, addr);
 
-  if (map->addr > addr || map->addr + map->size <= addr) {
-    sigaction(SIGSEGV, &_default_sa, NULL);
-    raise(signum);
-  } else {
-    SAFE_ASSERT(map->otid != -1);
-    shmap(map->addr, map->size, map->file.sh);
-  }
+  DEBUG_PRINTC("segfault_sa: addr=%p map={addr=%p size=%ld file=%d}\n",
+      addr, map->addr, map->size, map->file.sh);
+
+  SAFE_ASSERT(map->addr <= addr && map->addr + map->size > addr);
+  SAFE_ASSERT(map->otid != -1);
+  shmap(map->addr, map->size, map->file.sh, map->off);
+  /*sigaction(SIGSEGV, &_default_sa, NULL);*/
+  /*raise(signum);*/
 }
 
 void shmap_init(int nprocs)
@@ -162,22 +169,22 @@ int shmap_open(size_t size, const char * name)
   if (name) {
     sprintf(path, "/%s.%d.%s" , prefix, _pid, name);
   } else {
-    sprintf(path, "/%s.%d.%ld", prefix, _pid, sync_fadd(&suffix, 1));
+    sprintf(path, "/%s.%d.%ld", prefix, _pid, fadd(&suffix, 1));
   }
 
   int file;
   SAFE_RETURN(file, shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
   SAFE_FNCALL(ftruncate(file, size));
 
-  DEBUG_PRINT_INFO("shmap_open: path=%s file=%d size=%ld\n", path, file, size);
+  DEBUG_PRINTV("shmap_open: path=%s file=%d size=%ld\n", path, file, size);
+  SAFE_FNCALL(shm_unlink(path));
   return file;
 }
 
 void * shmap_mmap(void * addr, size_t size, int file)
 {
-  addr = shmap(addr, size, file);
-  create(file, addr, size);
-  DEBUG_PRINT_INFO("shmap_mmap: file=%d addr=%p size=%ld\n", file, addr, size);
+  addr = shmap(addr, size, file, 0);
+  create(addr, size, file, 0);
 
   return addr;
 }
@@ -186,7 +193,7 @@ int shmap_copy(void * addr, size_t size, const char * name)
 {
   /** Map the shm to a temporary address to copy the content of the pages. */
   int    shm = shmap_open(size, name);
-  void * buf = shmap(NULL, size, shm);
+  void * buf = shmap(NULL, size, shm, 0);
 
   memcpy(buf, addr, size);
   SAFE_FNCALL(munmap(buf, size));
@@ -200,23 +207,73 @@ int shmap_copy(void * addr, size_t size, const char * name)
  */
 void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
 {
-  if ((prot & PROT_WRITE) && (flag & MAP_PRIVATE)) {
-    /** Change private to shared. */
-    flag ^= MAP_PRIVATE;
-    flag |= MAP_SHARED;
-
-    /** Change anonymous to file-backed. */
-    if (flag & MAP_ANONYMOUS) {
-      SAFE_ASSERT(file == -1);
-      flag ^= MAP_ANONYMOUS;
-      file = shmap_open(size, NULL);
-    }
+  if (!(prot & PROT_WRITE) || !(flag & MAP_PRIVATE)) {
+    return (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
   }
 
-  addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
-  if (addr != MAP_FAILED) create(file, addr, size);
+  /** Change private to shared. */
+  flag ^= MAP_PRIVATE;
+  flag |= MAP_SHARED;
 
-  DEBUG_PRINT_VERBOSE("mmap: file=%d addr=%p size=%ld\n", file, addr, size);
-  return addr;
+  if (!(flag & MAP_ANONYMOUS)) {
+    SAFE_ASSERT(file != -1);
+    addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
+    if (addr != MAP_FAILED) create(addr, size, file, off);
+    return addr;
+  }
+
+  /** Change anonymous to file-backed. */
+  SAFE_ASSERT(file == -1);
+  flag ^= MAP_ANONYMOUS;
+
+  file = shmap_open(size, NULL);
+  void * ret = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
+  if (ret == MAP_FAILED) return ret;
+
+  addr = ret;
+  DEBUG_PRINTV("mmap: file=%d addr=%p size=%ld\n", file, addr, size);
+
+  /** Avoid new mapping overwrite old ones. */
+  const shmap_t * map = find(NULL, addr);
+
+  if (map->addr <= addr && map->addr + map->size > addr) {
+    size_t sz = map->addr + map->size - addr;
+    if (sz > size) sz = size;
+
+    shmap(addr, sz, map->file.sh, addr - map->addr);
+    addr += sz;
+    size -= sz;
+    off  += sz;
+  }
+
+  const shmap_t * next;
+
+  while ((next = map->next) && next->addr < addr + size) {
+    size_t sz;
+
+    if ((sz = next->addr - addr) > 0) {
+      create(addr, sz, file, off);
+      addr += sz;
+      size -= sz;
+      off  += sz;
+    }
+
+    sz = size < next->size ? size : next->size;
+    shmap(addr, sz, next->file.sh, 0);
+    addr += sz;
+    size -= sz;
+    off  += sz;
+
+    map = next;
+  }
+
+  if (size > 0) create(addr, size, file, off);
+  return ret;
+}
+
+int munmap(void * addr, size_t size)
+{
+  DEBUG_PRINTV("munmap: addr=%p size=%ld\n", addr, size);
+  return syscall(SYS_munmap, addr, size);
 }
 
