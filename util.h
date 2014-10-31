@@ -14,10 +14,20 @@
 #define trylock(ptr) (!__sync_lock_test_and_set(ptr, 1))
 
 /** Barrier. */
-#define barrier(ptr, n) do { \
-  int v = __sync_add_and_fetch(ptr, 1); \
-  while (v <= n && (v = cas(ptr, n, 0)) && v != n); \
-} while (0)
+static inline void barrier(int n)
+{
+  static volatile int count = 0;
+  static volatile int sense = 0;
+
+  int local_sense = !fibrile_deq.sense;
+
+  if (fadd(&count, 1) == n - 1) {
+    count = 0;
+    sense = local_sense;
+  }
+
+  while (sense != local_sense);
+}
 
 /** Others. */
 

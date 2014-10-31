@@ -20,7 +20,6 @@ char __data_start, _end;
 tls_t _tls;
 
 int     _nprocs;
-int     _barrier;
 int  *  _pids;
 void ** _stacks;
 
@@ -62,7 +61,7 @@ static void tls_init(int id)
   int file = shmap_copy(addr, size, path);
   _tls_files[id] = file;
 
-  barrier(&_barrier, _nprocs);
+  barrier(_nprocs);
 
   _deq.deqs = malloc(sizeof(tls_t *) * _nprocs);
 

@@ -57,8 +57,8 @@ typedef struct {
     int lock;
     int head;
     int tail;
-    void * base;
     struct _fibrile_deque_t **  deqs;
+    int sense;
   } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
   struct _fibril_t * buff[
     (FIBRILE_TLS_SIZE - sizeof(struct _fibrile_deque_t)) / FIBRILE_PTR_SIZE
