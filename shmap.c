@@ -271,9 +271,3 @@ void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
   return ret;
 }
 
-int munmap(void * addr, size_t size)
-{
-  DEBUG_PRINTV("munmap: addr=%p size=%ld\n", addr, size);
-  return syscall(SYS_munmap, addr, size);
-}
-
