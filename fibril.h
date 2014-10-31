@@ -1,25 +1,15 @@
 #ifndef FIBRIL_H
 #define FIBRIL_H
 
-typedef struct _fibril_t {
-  void * jtp;
-  void * rsp;
-  void * rbp;
-  void * rbx;
-  void * r12;
-  void * r13;
-  void * r14;
-  void * r15;
-  void * rip;
-} fibril_t;
-
 #include "fibrile.h"
+
+typedef struct _fibril_t fibril_t;
 
 extern int fibril_init(int nprocs);
 extern int fibril_exit();
 
-extern inline void __attribute__ ((always_inline))
-fibril_new(fibril_t * frptr)
+extern inline __attribute__ ((always_inline))
+void fibril_make(fibril_t * frptr)
 {
   register void * rsp asm ("rsp");
 
@@ -37,10 +27,14 @@ fibril_new(fibril_t * frptr)
   AFTER_FORK_##fn##__FILE__##__LINE__: break; \
 } while (0)
 
-extern inline void __attribute__ ((always_inline))
-fibril_join(fibril_t * frptr)
+extern inline __attribute__ ((always_inline))
+void fibril_join(fibril_t * frptr)
 {
-  if ((frptr)->jtp) _fibril_join(frptr);
+  if ((frptr)->jtp && !fibrile_join(frptr)) {
+    fibrile_save(frptr, &&AFTER_JOIN);
+    fibrile_yield(frptr);
+  }
+AFTER_JOIN: return;
 }
 
 #define FIBRIL_SUCCESS 0

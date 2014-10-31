@@ -7,6 +7,10 @@
 static inline __attribute__ ((noreturn))
 void sched_restart()
 {
+  frame_t * base = fibrile_deq.base;
+  DEBUG_PRINTV("restart: base=%p rbp=%p rip=%p\n", base, base->rsp, base->rip);
+  SAFE_ASSERT(base->rsp != NULL && base->rip != NULL);
+
   __asm__ __volatile__ (
       "mov\t$0,%%eax\n\t"
       "mov\t%0,%%rsp\n\t"

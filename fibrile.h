@@ -3,47 +3,33 @@
 
 #include <stddef.h>
 
-struct _fibril_t;
+struct _fibril_t {
+  void * jtp;
+  void * rsp;
+  void * rbp;
+  void * rbx;
+  void * r12;
+  void * r13;
+  void * r14;
+  void * r15;
+  void * rip;
+};
 
 typedef struct {
   void * addr;
   size_t size;
 } fibrile_data_t;
 
-extern __attribute__ ((noinline)) int
-_fibril_join(struct _fibril_t * frptr);
+extern int fibrile_join(const struct _fibril_t * frptr);
 
-extern __attribute__ ((noreturn)) int
-fibrile_join(const struct _fibril_t *, const fibrile_data_t *, size_t);
+extern __attribute__ ((noreturn)) void
+fibrile_yield(const struct _fibril_t * frptr);
 
-#include "fibril.h"
-
-#define FIBRILE_PAGE_SIZE (4096ULL)
-#define FIBRILE_TLS_SIZE  (2 * FIBRILE_PAGE_SIZE)
-#define FIBRILE_PTR_SIZE  (sizeof(void *))
-
-typedef struct {
-  struct _fibrile_deque_t {
-    int tid;
-    int pid;
-    int lock;
-    int head;
-    int tail;
-    void * base;
-    struct _fibrile_deque_t **  deqs;
-  } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
-  fibril_t * buff[
-    (FIBRILE_TLS_SIZE - sizeof(struct _fibrile_deque_t)) / FIBRILE_PTR_SIZE
-  ];
-} fibrile_tls_t __attribute__((aligned (FIBRILE_PAGE_SIZE)));
-
-extern fibrile_tls_t fibrile_tls;
-#define fibrile_deq (fibrile_tls.deq)
-
-#include "debug.h"
+extern __attribute__ ((noreturn)) void
+fibrile_resume(const struct _fibril_t *, const fibrile_data_t *, size_t);
 
 extern inline void __attribute__ ((always_inline))
-fibrile_save(fibril_t * frptr, void * rip)
+fibrile_save(struct _fibril_t * frptr, void * rip)
 {
   __asm__ (
       "mov\t%%rbp,%0\n\t"
@@ -60,7 +46,31 @@ fibrile_save(fibril_t * frptr, void * rip)
   );
 }
 
-static inline void fibrile_push(fibril_t * frptr)
+#define FIBRILE_PAGE_SIZE (4096ULL)
+#define FIBRILE_TLS_SIZE  (2 * FIBRILE_PAGE_SIZE)
+#define FIBRILE_PTR_SIZE  (sizeof(void *))
+
+typedef struct {
+  struct _fibrile_deque_t {
+    int tid;
+    int pid;
+    int lock;
+    int head;
+    int tail;
+    void * base;
+    struct _fibrile_deque_t **  deqs;
+  } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
+  struct _fibril_t * buff[
+    (FIBRILE_TLS_SIZE - sizeof(struct _fibrile_deque_t)) / FIBRILE_PTR_SIZE
+  ];
+} fibrile_tls_t __attribute__((aligned (FIBRILE_PAGE_SIZE)));
+
+extern fibrile_tls_t fibrile_tls;
+#define fibrile_deq (fibrile_tls.deq)
+
+#include "debug.h"
+
+static inline void fibrile_push(struct _fibril_t * frptr)
 {
   fibrile_tls.buff[fibrile_tls.deq.tail++] = frptr;
   DEBUG_PRINTV("push: frptr=%p rsp=%p rip=%p\n", frptr, frptr->rsp, frptr->rip);

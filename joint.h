@@ -7,7 +7,7 @@
 typedef struct {
   int lock;
   int count;
-  intptr_t offset;
+  void * stack;
 } joint_t;
 
 typedef fibrile_data_t data_t;

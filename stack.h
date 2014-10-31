@@ -26,6 +26,7 @@ void * stack_new(void * frame)
     SAFE_ASSERT(frame >= _stack_addr && frame < _stack_addr + _stack_size);
     sz = _stack_addr + _stack_size - frame;
     addr = malloc(sz);
+    DEBUG_PRINTV("stack_new: addr=%p size=%ld\n", addr, sz);
   } else {
     sz = _stack_size;
     addr = malloc(sz) + _stack_size;
@@ -47,8 +48,10 @@ void stack_free(void * addr, int inplace)
 static inline
 size_t stack_import(void * dest, void * src)
 {
-  SAFE_ASSERT(dest >= _stack_addr && dest < _stack_addr + _stack_size);
   size_t sz = _stack_addr + _stack_size - dest;
+
+  DEBUG_PRINTV("import: dest=%p src=%p size=%ld\n", dest, src, sz);
+  SAFE_ASSERT(dest >= _stack_addr && dest < _stack_addr + _stack_size);
 
   memcpy(dest, src, sz);
   return sz;
@@ -57,11 +60,20 @@ size_t stack_import(void * dest, void * src)
 static inline
 size_t stack_export(void * dest, void * src)
 {
-  SAFE_ASSERT(src >= _stack_addr && src < _stack_addr + _stack_size);
   size_t sz = _stack_addr + _stack_size - src;
+
+  DEBUG_PRINTV("export: dest=%p src=%p size=%ld\n", dest, src, sz);
+  SAFE_ASSERT(src >= _stack_addr && src < _stack_addr + _stack_size);
 
   memcpy(dest, src, sz);
   return sz;
+}
+
+static inline
+void * stack_shptr(void * ptr, int id)
+{
+  SAFE_ASSERT(ptr >= _stack_addr && ptr < _stack_addr + _stack_size);
+  return _stack_addrs[id] + (ptr - _stack_addr);
 }
 
 static inline

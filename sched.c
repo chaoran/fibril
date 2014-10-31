@@ -27,7 +27,7 @@ static inline void * steal(deque_t * deq, joint_t * jtptr)
   fibril_t * frptr = ((tls_t *) deq)->buff[H];
   SAFE_ASSERT(frptr != NULL);
 
-  fibril_t * rfrptr = adjust(frptr, stack_offset(deq->tid));
+  fibril_t * rfrptr = stack_shptr(frptr, deq->tid);
   rfrptr->jtp = jtptr;
 
   unlock(&deq->lock);
@@ -56,7 +56,6 @@ int sched_work()
   joint_t * jtptr = malloc(sizeof(joint_t));
   jtptr->lock = 0;
   jtptr->count = 1;
-  jtptr->offset = stack_offset(me);
 
   lock(&jtptr->lock);
 
@@ -69,14 +68,12 @@ int sched_work()
 
     if (frptr == NULL) continue;
 
-    intptr_t offset = stack_offset(victim);
-    void * stack = ((fibril_t *) adjust(frptr, offset))->rsp;
-    stack_import(stack, adjust(stack, offset));
-
-    DEBUG_PRINTC("steal: victim=%d frptr=%p jtptr=%p stack=%p offset=%lx\n",
-        victim, frptr, jtptr, stack, jtptr->offset);
-
+    void * stack = ((fibril_t *) stack_shptr(frptr, victim))->rsp;
+    stack_import(stack, stack_shptr(stack, victim));
+    jtptr->stack = stack_shptr(stack, me);
     unlock(&jtptr->lock);
+
+    DEBUG_PRINTC("steal: victim=%d frptr=%p jtptr=%p\n", victim, frptr, jtptr);
     sched_resume(frptr);
   }
 

@@ -1,14 +1,18 @@
 #include <stdio.h>
+#include "safe.h"
+#include "debug.h"
 #include "fibril.h"
 
 long __attribute__ ((hot)) fib(long n)
 {
   if (n < 2) return n;
 
+  DEBUG_PRINT("computing fib(%ld)\n", n);
+  SAFE_ASSERT(n <= 10 && n >= 2);
   fibril_t fr;
-  fibril_new(&fr);
+  fibril_make(&fr);
 
-  long x, y;
+  long x, y, m;
 
   do {
     fibrile_save(&fr, &&AFTER_FORK);
@@ -17,7 +21,7 @@ long __attribute__ ((hot)) fib(long n)
 
     if (!fibrile_pop()) {
       fibrile_data_t data[1] = { { &x, sizeof(x) } };
-      fibrile_join(&fr, data, 1);
+      fibrile_resume(&fr, data, 1);
     }
 AFTER_FORK: break;
   } while (0);
@@ -25,7 +29,10 @@ AFTER_FORK: break;
   y = fib(n - 2);
 
   fibril_join(&fr);
-  return x + y;
+  m = x + y;
+
+  DEBUG_PRINT("fib(%ld)=%ld\n", n, m);
+  return m;
 }
 
 int main(int argc, const char *argv[])
