@@ -2,23 +2,19 @@
 #define SCHED_H
 
 #include "util.h"
+#include "stack.h"
 #include "fibril.h"
+#include "fibrili.h"
+
+__attribute__ ((noreturn))
+void sched_work(int id, int procs);
+void sched_exit();
 
 static inline __attribute__ ((noreturn))
 void sched_restart()
 {
-  frame_t * base = fibrile_deq.base;
-  DEBUG_PRINTV("restart: base=%p rbp=%p rip=%p\n", base, base->rsp, base->rip);
-  SAFE_ASSERT(base->rsp != NULL && base->rip != NULL);
-
-  __asm__ __volatile__ (
-      "mov\t$0,%%eax\n\t"
-      "mov\t%0,%%rsp\n\t"
-      "pop\t%%rbp\n\t"
-      "retq" : : "g" (fibrile_deq.base) : "eax"
-  );
-
-  unreachable();
+  int id = fibrile_deq.tid;
+  STACK_EXECUTE(_stacks[id], sched_work(id, _nprocs));
 }
 
 static inline __attribute__ ((noreturn))
@@ -41,10 +37,5 @@ void sched_resume(const fibril_t * frptr)
 
   unreachable();
 }
-
-int  sched_work();
-void sched_exit();
-
-#define SCHED_DONE 1
 
 #endif /* end of include guard: SCHED_H */

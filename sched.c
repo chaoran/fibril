@@ -5,9 +5,11 @@
 #include "joint.h"
 #include "sched.h"
 #include "stack.h"
+/*#include "fibril.h"*/
 #include "fibrili.h"
 
-static int _done;
+static int _done = 1;
+static fibril_t _exit_fr;
 
 static inline void * steal(deque_t * deq, joint_t * jtptr)
 {
@@ -34,24 +36,8 @@ static inline void * steal(deque_t * deq, joint_t * jtptr)
   return frptr;
 }
 
-int sched_work()
+void sched_work(int me, int nprocs)
 {
-  /** Setup frame if this is the first time. */
-  if (_deq.base == NULL) {
-    _deq.base = this_frame();
-
-    if (_tid == 0) lock(&_done);
-
-    barrier(&_barrier, _nprocs);
-    DEBUG_PRINTI("sched_work: base=%p\n", _deq.base);
-
-    if (_tid == 0) return SCHED_DONE;
-  }
-
-  /** Main loop. */
-  int nprocs = _nprocs;
-  int me = _tid;
-
   /** Allocate a joint before stealing. */
   joint_t * jtptr = malloc(sizeof(joint_t));
   jtptr->lock = 0;
@@ -78,11 +64,33 @@ int sched_work()
   }
 
   unlock(&_done);
-  return SCHED_DONE;
+  free(jtptr);
+
+  if (me == 0) {
+    /*SAFE_ASSERT(0);*/
+    fibrile_resume(&_exit_fr, NULL, 0);
+  }
+  else exit(0);
 }
 
 void sched_exit()
 {
-  unlock(&_done);
+  if (_tid == 0) {
+    unlock(&_done);
+  } else {
+    fibril_make(&_exit_fr);
+
+    joint_t * jtp = malloc(sizeof(joint_t));
+    jtp->lock = 1;
+    jtp->count = 0;
+
+    _exit_fr.jtp = jtp;
+
+    fibrile_save(&_exit_fr, &&AFTER_EXIT);
+    unlock(&_done);
+    fibrile_yield(&_exit_fr);
+  }
+
+AFTER_EXIT: return;
 }
 

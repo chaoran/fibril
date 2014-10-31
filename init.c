@@ -84,14 +84,8 @@ static int child_main(void * id_)
   tls_init(id);
   stack_init_child(id);
 
-  while (SCHED_DONE != sched_work());
+  sched_work(id, _nprocs);
   return 0;
-}
-
-static void parent_main(void * stptr)
-{
-  tls_init(0);
-  STACK_EXECUTE(stptr, while(SCHED_DONE != sched_work()));
 }
 
 int fibril_init(int nprocs)
@@ -100,27 +94,27 @@ int fibril_init(int nprocs)
   _pid = getpid();
   _nprocs = nprocs;
   _pids = malloc(sizeof(int) * nprocs);
-  _stacks = malloc(sizeof(void *) * nprocs);
 
   globe_init(nprocs);
   stack_init(nprocs);
 
   _tls_files = malloc(sizeof(int) * nprocs);
+  _stacks = malloc(sizeof(void *) * nprocs);
+
+  int i;
+  for (i = 0; i < nprocs; ++i) {
+    _stacks[i] = stack_new(NULL);
+  }
 
   /** Create workers. */
-  int i;
   for (i = 1; i < nprocs; ++i) {
-    _stacks[i] = stack_new(NULL);
-
     SAFE_RETURN(_pids[i], clone(child_main, _stacks[i],
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
           (void *) (size_t) i));
     DEBUG_PRINTI("clone: tid=%d pid=%d stack=%p\n", i, _pids[i], _stacks[i]);
   }
 
-  _stacks[0] = stack_new(NULL);
-  parent_main(_stacks[0]);
-
+  tls_init(0);
   free(_tls_files);
   return 0;
 }
