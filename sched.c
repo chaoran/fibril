@@ -66,11 +66,8 @@ void sched_work(int me, int nprocs)
   unlock(&_done);
   free(jtptr);
 
-  if (me == 0) {
-    /*SAFE_ASSERT(0);*/
-    fibrile_resume(&_exit_fr, NULL, 0);
-  }
-  else exit(0);
+  if (me) exit(0);
+  else fibrile_resume(&_exit_fr, NULL, 0);
 }
 
 void sched_exit()
