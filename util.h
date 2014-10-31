@@ -27,6 +27,7 @@ static inline void barrier(int n)
   }
 
   while (sense != local_sense);
+  fence();
 }
 
 /** Others. */
