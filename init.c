@@ -58,8 +58,7 @@ static void tls_init(int id)
   void * addr = &_tls;
   size_t size = sizeof(_tls);
 
-  int file = shmap_copy(addr, size, path);
-  _tls_files[id] = file;
+  _tls_files[id] = shmap_copy(addr, size, path);
 
   barrier(_nprocs);
 
@@ -83,6 +82,7 @@ static int child_main(void * id_)
   tls_init(id);
   stack_init_child(id);
 
+  barrier(_nprocs);
   sched_work(id, _nprocs);
   return 0;
 }
@@ -114,6 +114,7 @@ int fibril_init(int nprocs)
   }
 
   tls_init(0);
+  barrier(nprocs);
   free(_tls_files);
   return 0;
 }
