@@ -17,6 +17,7 @@
 
 void *  _stack_addr;
 size_t  _stack_size;
+void *  _stack_bottom;
 void ** _stack_addrs;
 int  *  _stack_files;
 
@@ -47,6 +48,8 @@ static void find_stack(void ** addr, size_t * size)
 void stack_init(int nprocs)
 {
   find_stack(&_stack_addr, &_stack_size);
+
+  _stack_bottom = _stack_addr + _stack_size;
 
   _stack_addrs = malloc(sizeof(void *) * nprocs);
   _stack_files = malloc(sizeof(int) * nprocs);

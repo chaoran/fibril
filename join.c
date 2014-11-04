@@ -8,24 +8,91 @@
 #include "joint.h"
 #include "stack.h"
 
-static inline
-void write_update(intptr_t offset, const data_t * data, size_t n)
+static int commit(void * top, void * btm, intptr_t off,
+    const data_t * data, size_t n)
 {
+  int l = 0;
   int i;
+
   for (i = 0; i < n; ++i) {
-    void * src  = data->addr;
-    void * dest = src + offset;
-    size_t size = data->size;
+    void * addr = data[i].addr;
+
+    if (addr < top || addr >= btm) continue;
+
+    void * dest = addr + off;
+    size_t size = data[i].size;
+
+    SAFE_ASSERT(addr + size <= btm);
 
     switch (size) {
       case 0: break;
-      case 1: *(int8_t  *) dest = *(int8_t  *) src; break;
-      case 2: *(int16_t *) dest = *(int16_t *) src; break;
-      case 4: *(int32_t *) dest = *(int32_t *) src; break;
-      case 8: *(int64_t *) dest = *(int64_t *) src; break;
-      default: memcpy(dest, src, size);
+      case 1: *(int8_t  *) dest = *(int8_t  *) addr; break;
+      case 2: *(int16_t *) dest = *(int16_t *) addr; break;
+      case 4: *(int32_t *) dest = *(int32_t *) addr; break;
+      case 8: *(int64_t *) dest = *(int64_t *) addr; break;
+      default: memcpy(dest, addr, size);
     }
+
+    l++;
   }
+
+  return l;
+}
+
+static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
+{
+  void * top = jtptr->stack.top;
+  void * btm = jtptr->stack.btm;
+  intptr_t off = jtptr->stack.ptr - jtptr->stack.top;
+
+  size_t left = n - commit(top, btm, off, data, n);
+
+  joint_t * parent = jtptr->parent;
+
+  SAFE_ASSERT(parent->stack.top <= btm);
+  top = btm;
+
+  while (left > 0 && NULL != (jtptr = parent)) {
+    lock(&jtptr->lock);
+
+    btm = jtptr->stack.btm;
+    off = jtptr->stack.ptr - jtptr->stack.top;
+
+    left -= commit(top, btm, off, data, n);
+
+    /** Read the parent pointer before unlock. */
+    parent = jtptr->parent;
+    unlock(&jtptr->lock);
+
+    SAFE_ASSERT(parent->stack.top <= btm);
+    top = btm;
+  }
+}
+
+static void import(const joint_t * jtptr)
+{
+  void * dest = jtptr->stack.top;
+  void * addr = jtptr->stack.ptr;
+  size_t size = jtptr->stack.btm - jtptr->stack.top;
+
+  memcpy(dest, addr, size);
+  free(addr);
+
+  DEBUG_PRINTV("import: jtptr=%p top=%p btm=%p\n", jtptr,
+      jtptr->stack.top, jtptr->stack.btm);
+}
+
+static void * export(const joint_t * jtptr)
+{
+  void * addr = jtptr->stack.top;
+  size_t size = jtptr->stack.btm - jtptr->stack.top;
+  void * dest = malloc(size);
+
+  memcpy(dest, addr, size);
+
+  DEBUG_PRINTV("export: jtptr=%p top=%p btm=%p\n", jtptr,
+      jtptr->stack.top, jtptr->stack.btm);
+  return dest;
 }
 
 int fibrile_join(const fibril_t * frptr)
@@ -42,7 +109,7 @@ int fibrile_join(const fibril_t * frptr)
     unlock(&jtptr->lock);
     free(jtptr);
 
-    DEBUG_PRINTC("join (success): frptr=%p\n", frptr);
+    DEBUG_PRINTC("join (success): frptr=%p jtptr=%p\n", frptr, jtptr);
   } else {
     jtptr->count = count - 1;
 
@@ -57,8 +124,8 @@ void fibrile_yield(const fibril_t * frptr)
   joint_t * jtptr = frptr->jtp;
   SAFE_ASSERT(jtptr != NULL);
 
-  jtptr->stack = stack_new(frptr->rsp);
-  stack_export(jtptr->stack, frptr->rsp);
+  SAFE_ASSERT(jtptr->stack.ptr == stack_shptr(jtptr->stack.top, _tid));
+  jtptr->stack.ptr = export(jtptr);
 
   unlock(&jtptr->lock);
   sched_restart();
@@ -71,24 +138,23 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 
   lock(&jtptr->lock);
 
+  if (n > 0) commit_all(jtptr, data, n);
+
   int count = jtptr->count;
 
   if (count == 0) {
-    write_update(jtptr->stack - frptr->rsp, data, n);
-    stack_import(frptr->rsp, jtptr->stack);
-
+    import(jtptr);
     unlock(&jtptr->lock);
     free(jtptr);
 
-    DEBUG_PRINTC("resume (success): frptr=%p rip=%p\n", frptr, frptr->rip);
+    DEBUG_PRINTC("resume (success): frptr=%p jtptr=%p\n", frptr, jtptr);
     sched_resume(frptr);
   } else {
     jtptr->count = count - 1;
-
-    write_update(jtptr->stack - frptr->rsp, data, n);
     unlock(&jtptr->lock);
 
-    DEBUG_PRINTC("resume (failed): frptr=%p count=%d\n", frptr, count);
+    DEBUG_PRINTC("resume (failed): frptr=%p jtptr=%p count=%d\n",
+        frptr, jtptr, count);
     sched_restart();
   }
 }

@@ -10,6 +10,7 @@ void   stack_init_child(int id);
 
 extern void *  _stack_addr;
 extern size_t  _stack_size;
+extern void *  _stack_bottom;
 extern void ** _stack_addrs;
 extern int  *  _stack_files;
 
@@ -46,40 +47,10 @@ void stack_free(void * addr, int inplace)
 }
 
 static inline
-size_t stack_import(void * dest, void * src)
-{
-  size_t sz = _stack_addr + _stack_size - dest;
-
-  DEBUG_PRINTV("import: dest=%p src=%p size=%ld\n", dest, src, sz);
-  SAFE_ASSERT(dest >= _stack_addr && dest < _stack_addr + _stack_size);
-
-  memcpy(dest, src, sz);
-  return sz;
-}
-
-static inline
-size_t stack_export(void * dest, void * src)
-{
-  size_t sz = _stack_addr + _stack_size - src;
-
-  DEBUG_PRINTV("export: dest=%p src=%p size=%ld\n", dest, src, sz);
-  SAFE_ASSERT(src >= _stack_addr && src < _stack_addr + _stack_size);
-
-  memcpy(dest, src, sz);
-  return sz;
-}
-
-static inline
 void * stack_shptr(void * ptr, int id)
 {
-  SAFE_ASSERT(ptr >= _stack_addr && ptr < _stack_addr + _stack_size);
+  SAFE_ASSERT(ptr >= _stack_addr && ptr <= _stack_bottom);
   return _stack_addrs[id] + (ptr - _stack_addr);
-}
-
-static inline
-intptr_t stack_offset(int id)
-{
-  return _stack_addr - _stack_addrs[id];
 }
 
 #define STACK_EXECUTE(stack, fcall) do { \

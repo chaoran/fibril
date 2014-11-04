@@ -3,12 +3,13 @@
 #include "debug.h"
 #include "fibril.h"
 
+static long table[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55 };
+
 long __attribute__ ((hot)) fib(long n)
 {
   if (n < 2) return n;
 
   DEBUG_PRINT("computing fib(%ld)\n", n);
-  SAFE_ASSERT(n <= 10 && n >= 2);
   fibril_t fr;
   fibril_make(&fr);
 
@@ -32,15 +33,18 @@ AFTER_FORK: break;
   m = x + y;
 
   DEBUG_PRINT("fib(%ld)=%ld\n", n, m);
+  SAFE_ASSERT(n >= 2 && n <= 10 && m == table[n]);
   return m;
 }
 
 int main(int argc, const char *argv[])
 {
-  int n = 10;
-
   fibril_init(4);
-  printf("fib(%d) = %ld\n", n, fib(n));
+
+  int n = 10;
+  long m = fib(n);
+
+  printf("fib(%d) = %ld\n", n, m);
   fibril_exit();
 
   return 0;

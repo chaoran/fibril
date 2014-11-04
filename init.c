@@ -11,6 +11,7 @@
 #include "safe.h"
 #include "util.h"
 #include "debug.h"
+#include "joint.h"
 #include "sched.h"
 #include "stack.h"
 #include "shmap.h"
@@ -22,6 +23,8 @@ tls_t _tls;
 int     _nprocs;
 int  *  _pids;
 void ** _stacks;
+
+joint_t _joint;
 
 static int * _tls_files;
 
@@ -69,6 +72,12 @@ static void tls_init(int id)
     if (i != id) {
       _deq.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
     }
+  }
+
+  if (id == 0) {
+    _joint.stack.top = _stack_bottom;
+    _joint.stack.btm = _stack_bottom;
+    _deq.jtptr = &_joint;
   }
 }
 
