@@ -10,6 +10,44 @@
 static int _done = 1;
 static fibril_t _exit_fr;
 
+static inline
+joint_t * joint_new(const fibril_t * frptr, joint_t * parent,
+    const deque_t * deq)
+{
+  SAFE_ASSERT(parent != NULL);
+
+  joint_t * jtptr = malloc(sizeof(joint_t));
+  jtptr->lock = 1;
+  jtptr->count = 1;
+  jtptr->parent = parent;
+
+  frame_t * frame = parent->frame;
+  SAFE_ASSERT(frame != NULL);
+
+  if (frame->ptr == stack_shptr(frame->top, deq->tid)) {
+    jtptr->frame = frame;
+    frame->top = frptr->rsp;
+    frame->ptr = stack_shptr(frame->top, deq->tid);
+
+    DEBUG_PRINTV("promote (borrow): jtptr=%p frame=%p top=%p\n",
+        jtptr, frame, frame->top);
+  } else {
+    jtptr->frame = malloc(sizeof(frame_t));
+    jtptr->frame->btm = frame->top;
+
+    frame = jtptr->frame;
+    frame->top = frptr->rsp;
+    frame->ptr = stack_shptr(frame->top, deq->tid);
+
+    DEBUG_PRINTV("promote (new): jtptr=%p frame=%p top=%p btm=%p\n",
+        jtptr, frame, frame->top, frame->btm);
+  }
+
+
+  SAFE_ASSERT(frame->top != NULL);
+  return jtptr;
+}
+
 static inline joint_t * promote(fibril_t * frptr, deque_t * deq)
 {
   joint_t * jtptr;
@@ -18,62 +56,27 @@ static inline joint_t * promote(fibril_t * frptr, deque_t * deq)
   if (NULL != (jtptr = frptr->jtp)) {
     lock(&jtptr->lock);
     jtptr->count++;
+  }
 
-    DEBUG_PRINTV("promote (reuse): jtptr=%p count=%d\n", jtptr, jtptr->count);
-  } else {
-    jtptr = deq->jtptr;
-
-    /** If the deque's joint pointer is not stolen, use that pointer. */
-    if (jtptr->stack.ptr == stack_shptr(jtptr->stack.top, deq->tid)) {
-      lock(&jtptr->lock);
-      jtptr->count++;
-
-      jtptr->stack.top = frptr->rsp;
-      jtptr->stack.ptr = stack_shptr(jtptr->stack.top, deq->tid);
-      frptr->jtp = jtptr;
-
-      DEBUG_PRINTV("promote (borrow): jtptr=%p count=%d top=%p\n",
-          jtptr, jtptr->count, jtptr->stack.top);
-    }
-
-    /** Otherwise create a new joint pointer. */
-    else {
-      jtptr = malloc(sizeof(joint_t));
-      jtptr->lock = 1;
-      jtptr->count = 1;
-
-      joint_t * parent = deq->jtptr;
-      jtptr->parent = parent;
-      jtptr->stack.btm = parent->stack.top;
-
-      deq->jtptr = jtptr;
-
-      jtptr->stack.top = frptr->rsp;
-      jtptr->stack.ptr = stack_shptr(jtptr->stack.top, deq->tid);
-      frptr->jtp = jtptr;
-
-      DEBUG_PRINTV("promote (new): jtptr=%p count=%d top=%p btm=%p\n",
-          jtptr, jtptr->count, jtptr->stack.top, jtptr->stack.btm);
-    }
+  /** Otherwise create a new joint pointer. */
+  else {
+    jtptr = joint_new(frptr, deq->jtptr, deq);
+    frptr->jtp = jtptr;
+    deq->jtptr = jtptr;
   }
 
   return jtptr;
 }
 
-static inline void import(joint_t * jtptr)
+static inline void * import(const frame_t * frame)
 {
   /** Copy stack prefix. */
-  void * dest = jtptr->stack.top;
-  void * addr = jtptr->stack.ptr;
-  size_t size = jtptr->stack.btm - dest;
+  void * dest = frame->top;
+  void * addr = frame->ptr;
+  size_t size = _stack_bottom - dest;
 
   memcpy(dest, addr, size);
-
-  /** Move the joint pointer. */
-  jtptr->stack.ptr = stack_shptr(dest, _tid);
-  _deq.jtptr = jtptr;
-
-  unlock(&jtptr->lock);
+  return stack_shptr(dest, _tid);
 }
 
 static inline void * steal(deque_t * deq)
@@ -92,15 +95,17 @@ static inline void * steal(deque_t * deq)
   }
 
   fibril_t * frptr = ((tls_t *) deq)->buff[H];
-  DEBUG_PRINTC("steal: victim=%d head=%d frptr=%p\n", deq->tid, H, frptr);
   SAFE_ASSERT(frptr != NULL);
+  DEBUG_PRINTC("steal: victim=%d frptr=%p\n", deq->tid, frptr);
 
   joint_t * jtptr = promote(stack_shptr(frptr, deq->tid), deq);
-
   unlock(&deq->lock);
 
-  import(jtptr);
-  SAFE_ASSERT(frptr->jtp == jtptr);
+  frame_t * frame = jtptr->frame;
+  frame->ptr = import(frame);
+
+  _deq.jtptr = jtptr;
+  unlock(&jtptr->lock);
 
   return frptr;
 }
@@ -122,8 +127,16 @@ void sched_work(int me, int nprocs)
 
   unlock(&_done);
 
-  if (me) exit(0);
-  else fibrile_resume(&_exit_fr, NULL, 0);
+  if (me) {
+    barrier(_nprocs);
+    exit(0);
+  } else {
+    frame_t * frame = ((joint_t *) _exit_fr.jtp)->frame;
+    memcpy(frame->top, frame->ptr, frame->btm - frame->top);
+    free(frame->ptr);
+    free(frame);
+    sched_resume(&_exit_fr);
+  }
 }
 
 void sched_exit()
@@ -133,14 +146,16 @@ void sched_exit()
   } else {
     fibril_make(&_exit_fr);
 
-    _exit_fr.jtp = &_joint;
-    _joint.stack.top = _exit_fr.rsp;
-
     fibrile_save(&_exit_fr, &&AFTER_EXIT);
+    _joint.frame->top = _exit_fr.rsp;
+    _exit_fr.jtp = &_joint;
+
     unlock(&_done);
     fibrile_yield(&_exit_fr);
   }
 
-AFTER_EXIT: return;
+AFTER_EXIT:
+  barrier(_nprocs);
+  return;
 }
 

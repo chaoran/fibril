@@ -112,6 +112,7 @@ static inline int fibrile_pop()
     fibrile_unlock(&fibrile_deq.lock);
   }
 
+  DEBUG_PRINTV("poped: frptr=%p tail=%d\n", fibrile_tls.buff[T], T);
   return 1;
 }
 

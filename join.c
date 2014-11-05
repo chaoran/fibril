@@ -41,22 +41,27 @@ static int commit(void * top, void * btm, intptr_t off,
 
 static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 {
-  void * top = jtptr->stack.top;
-  void * btm = jtptr->stack.btm;
-  intptr_t off = jtptr->stack.ptr - jtptr->stack.top;
+  const frame_t * frame = jtptr->frame;
+  void * top = frame->top;
+  void * btm = frame->btm;
+  intptr_t off = frame->ptr - frame->top;
 
   size_t left = n - commit(top, btm, off, data, n);
 
   joint_t * parent = jtptr->parent;
 
-  SAFE_ASSERT(parent->stack.top <= btm);
+  SAFE_ASSERT(parent->frame->top <= btm);
   top = btm;
 
   while (left > 0 && NULL != (jtptr = parent)) {
+    frame = jtptr->frame;
+
+    if (frame->btm <= btm) continue;
+
     lock(&jtptr->lock);
 
-    btm = jtptr->stack.btm;
-    off = jtptr->stack.ptr - jtptr->stack.top;
+    btm = frame->btm;
+    off = frame->ptr - frame->top;
 
     left -= commit(top, btm, off, data, n);
 
@@ -64,34 +69,38 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
     parent = jtptr->parent;
     unlock(&jtptr->lock);
 
-    SAFE_ASSERT(parent->stack.top <= btm);
+    SAFE_ASSERT(parent->frame->top <= btm);
     top = btm;
   }
 }
 
 static void import(const joint_t * jtptr)
 {
-  void * dest = jtptr->stack.top;
-  void * addr = jtptr->stack.ptr;
-  size_t size = jtptr->stack.btm - jtptr->stack.top;
+  const frame_t * frame = jtptr->frame;
+
+  void * dest = frame->top;
+  void * addr = frame->ptr;
+  size_t size = frame->btm - frame->top;
 
   memcpy(dest, addr, size);
   free(addr);
 
   DEBUG_PRINTV("import: jtptr=%p top=%p btm=%p\n", jtptr,
-      jtptr->stack.top, jtptr->stack.btm);
+      frame->top, frame->btm);
 }
 
 static void * export(const joint_t * jtptr)
 {
-  void * addr = jtptr->stack.top;
-  size_t size = jtptr->stack.btm - jtptr->stack.top;
+  const frame_t * frame = jtptr->frame;
+
+  void * addr = frame->top;
+  size_t size = frame->btm - frame->top;
   void * dest = malloc(size);
 
   memcpy(dest, addr, size);
 
   DEBUG_PRINTV("export: jtptr=%p top=%p btm=%p\n", jtptr,
-      jtptr->stack.top, jtptr->stack.btm);
+      frame->top, frame->btm);
   return dest;
 }
 
@@ -106,6 +115,7 @@ int fibrile_join(const fibril_t * frptr)
   int success = (count == 0);
 
   if (success) {
+    _deq.jtptr = jtptr->parent;
     unlock(&jtptr->lock);
     free(jtptr);
 
@@ -113,7 +123,8 @@ int fibrile_join(const fibril_t * frptr)
   } else {
     jtptr->count = count - 1;
 
-    DEBUG_PRINTC("join (failed): frptr=%p count=%d\n", frptr, count);
+    DEBUG_PRINTC("join (failed): frptr=%p jtptr=%p count=%d\n",
+        frptr, jtptr, count);
   }
 
   return success;
@@ -124,8 +135,7 @@ void fibrile_yield(const fibril_t * frptr)
   joint_t * jtptr = frptr->jtp;
   SAFE_ASSERT(jtptr != NULL);
 
-  SAFE_ASSERT(jtptr->stack.ptr == stack_shptr(jtptr->stack.top, _tid));
-  jtptr->stack.ptr = export(jtptr);
+  jtptr->frame->ptr = export(jtptr);
 
   unlock(&jtptr->lock);
   sched_restart();
@@ -133,7 +143,7 @@ void fibrile_yield(const fibril_t * frptr)
 
 void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 {
-  joint_t * jtptr = frptr->jtp;
+  joint_t * jtptr = _deq.jtptr;
   SAFE_ASSERT(jtptr != NULL);
 
   lock(&jtptr->lock);
@@ -144,6 +154,7 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 
   if (count == 0) {
     import(jtptr);
+    _deq.jtptr = jtptr->parent;
     unlock(&jtptr->lock);
     free(jtptr);
 

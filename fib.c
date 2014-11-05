@@ -41,7 +41,7 @@ int main(int argc, const char *argv[])
 {
   fibril_init(4);
 
-  int n = 10;
+  int n = 6;
   long m = fib(n);
 
   printf("fib(%d) = %ld\n", n, m);

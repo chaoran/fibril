@@ -32,15 +32,7 @@ static inline void barrier(int n)
 }
 
 /** Others. */
-
-typedef struct _frame_t {
-  void * rsp;
-  void * rip;
-} frame_t;
-
-#define this_frame() ((frame_t *) __builtin_frame_address(0))
 #define unreachable() __builtin_unreachable()
-
 #define adjust(addr, offset) ((void *) addr - offset)
 
 #endif /* end of include guard: UTIL_H */
