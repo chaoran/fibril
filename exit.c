@@ -18,12 +18,7 @@ int fibril_exit()
   }
 
   free(_pids);
-
-  for (i = 0; i < _nprocs; ++i) {
-    stack_free(_stacks[i], STACK_FREE_ATTOP);
-  }
-
-  free(_stacks);
+  stack_finalize(_nprocs);
 
   return 0;
 }

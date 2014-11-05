@@ -21,10 +21,9 @@ joint_t * joint_new(const fibril_t * frptr, joint_t * parent,
   jtptr->count = 1;
   jtptr->parent = parent;
 
-  if (parent->stptr->ptr == stack_shptr(parent->stptr->top, deq->tid)) {
+  if (parent->stptr->off == STACK_OFFSETS[deq->tid]) {
     jtptr->stptr = parent->stptr;
     jtptr->stptr->top = frptr->rsp;
-    jtptr->stptr->ptr = stack_shptr(jtptr->stptr->top, deq->tid);
 
     DEBUG_PRINTV("promote (borrow): jtptr=%p stptr=%p top=%p\n",
         jtptr, jtptr->stptr, jtptr->stptr->top);
@@ -32,7 +31,7 @@ joint_t * joint_new(const fibril_t * frptr, joint_t * parent,
     jtptr->stptr = &jtptr->stack;
     jtptr->stptr->btm = parent->stptr->top;
     jtptr->stptr->top = frptr->rsp;
-    jtptr->stptr->ptr = stack_shptr(jtptr->stptr->top, deq->tid);
+    jtptr->stptr->off = STACK_OFFSETS[deq->tid];
 
     DEBUG_PRINTV("promote (new): jtptr=%p stptr=%p top=%p btm=%p\n",
         jtptr, jtptr->stptr, jtptr->stptr->top, jtptr->stptr->btm);
@@ -61,15 +60,16 @@ static inline joint_t * promote(fibril_t * frptr, deque_t * deq)
   return jtptr;
 }
 
-static inline void * import(const joint_t * jtptr)
+static inline void import(joint_t * jtptr)
 {
   /** Copy stack prefix. */
   void * dest = jtptr->stptr->top;
-  void * addr = jtptr->stptr->ptr;
-  size_t size = _stack_bottom - dest;
+  void * addr = jtptr->stptr->top + jtptr->stptr->off;
+  size_t size = STACK_BOTTOM - dest;
 
   memcpy(dest, addr, size);
-  return stack_shptr(dest, _tid);
+
+  jtptr->stptr->off = STACK_OFFSETS[_tid];
 }
 
 static inline void * steal(deque_t * deq)
@@ -94,7 +94,7 @@ static inline void * steal(deque_t * deq)
   joint_t * jtptr = promote(stack_shptr(frptr, deq->tid), deq);
   unlock(&deq->lock);
 
-  jtptr->stptr->ptr = import(jtptr);
+  import(jtptr);
 
   _deq.jtptr = jtptr;
   unlock(&jtptr->lock);
@@ -123,8 +123,9 @@ void sched_work(int me, int nprocs)
     barrier(_nprocs);
     exit(0);
   } else {
-    import(_exit_fr.jtp);
-    free(((joint_t *) _exit_fr.jtp)->stptr->ptr);
+    joint_t * jtptr = _exit_fr.jtp;
+    import(jtptr);
+    free(jtptr->stptr->top + jtptr->stptr->off);
     sched_resume(&_exit_fr);
   }
 }

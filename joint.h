@@ -4,12 +4,6 @@
 #include "fibrile.h"
 #include <stdint.h>
 
-//typedef struct _frame_t {
-  //void * top;
-  //void * btm;
-  //void * ptr;
-//} frame_t;
-
 typedef struct _fibrile_joint_t {
   int lock;
   int count;
@@ -17,7 +11,7 @@ typedef struct _fibrile_joint_t {
   struct _stack_t {
     void * top;
     void * btm;
-    void * ptr;
+    intptr_t off;
   } stack;
   struct _stack_t * stptr;
 } joint_t;

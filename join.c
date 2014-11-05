@@ -43,7 +43,7 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 {
   void * top = jtptr->stptr->top;
   void * btm = jtptr->stptr->btm;
-  intptr_t off = jtptr->stptr->ptr - jtptr->stptr->top;
+  intptr_t off = jtptr->stptr->off;
 
   size_t left = n - commit(top, btm, off, data, n);
 
@@ -59,8 +59,7 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 
     lock(&jtptr->lock);
 
-    off = jtptr->stptr->ptr - jtptr->stptr->top;
-
+    off = jtptr->stptr->off;
     left -= commit(top, btm, off, data, n);
 
     /** Read the parent pointer before unlock. */
@@ -75,7 +74,7 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 static void import(const joint_t * jtptr)
 {
   void * dest = jtptr->stptr->top;
-  void * addr = jtptr->stptr->ptr;
+  void * addr = dest + jtptr->stptr->off;
   size_t size = jtptr->stptr->btm - jtptr->stptr->top;
 
   memcpy(dest, addr, size);
@@ -85,7 +84,7 @@ static void import(const joint_t * jtptr)
       jtptr->stptr->top, jtptr->stptr->btm);
 }
 
-static void * export(const joint_t * jtptr)
+static void export(const joint_t * jtptr)
 {
   void * addr = jtptr->stptr->top;
   size_t size = jtptr->stptr->btm - jtptr->stptr->top;
@@ -93,9 +92,10 @@ static void * export(const joint_t * jtptr)
 
   memcpy(dest, addr, size);
 
-  DEBUG_PRINTV("export: jtptr=%p top=%p btm=%p\n", jtptr,
-      jtptr->stptr->top, jtptr->stptr->btm);
-  return dest;
+  jtptr->stptr->off = dest - addr;
+
+  DEBUG_PRINTV("export: jtptr=%p top=%p btm=%p off=%ld\n", jtptr,
+      jtptr->stptr->top, jtptr->stptr->btm, jtptr->stptr->off);
 }
 
 int fibrile_join(const fibril_t * frptr)
@@ -129,7 +129,7 @@ void fibrile_yield(const fibril_t * frptr)
   joint_t * jtptr = frptr->jtp;
   SAFE_ASSERT(jtptr != NULL);
 
-  jtptr->stptr->ptr = export(jtptr);
+  export(jtptr);
 
   unlock(&jtptr->lock);
   sched_restart();

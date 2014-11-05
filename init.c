@@ -75,8 +75,8 @@ static void tls_init(int id)
   }
 
   if (id == 0) {
-    _joint.stack.top = _stack_bottom;
-    _joint.stack.btm = _stack_bottom;
+    _joint.stack.top = STACK_BOTTOM;
+    _joint.stack.btm = STACK_BOTTOM;
     _joint.stptr = &_joint.stack;
     _deq.jtptr = &_joint;
   }
@@ -108,19 +108,13 @@ int fibril_init(int nprocs)
   stack_init(nprocs);
 
   _tls_files = malloc(sizeof(int) * nprocs);
-  _stacks = malloc(sizeof(void *) * nprocs);
-
-  int i;
-  for (i = 0; i < nprocs; ++i) {
-    _stacks[i] = stack_new(NULL);
-  }
 
   /** Create workers. */
+  int i;
   for (i = 1; i < nprocs; ++i) {
-    SAFE_RETURN(_pids[i], clone(child_main, _stacks[i],
+    SAFE_RETURN(_pids[i], clone(child_main, STACK_ADDRS[i],
           CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
           (void *) (size_t) i));
-    DEBUG_PRINTI("clone: tid=%d pid=%d stack=%p\n", i, _pids[i], _stacks[i]);
   }
 
   tls_init(0);

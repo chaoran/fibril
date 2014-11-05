@@ -7,50 +7,19 @@
 
 void   stack_init(int nprocs);
 void   stack_init_child(int id);
+void   stack_finalize(int nprocs);
 
-extern void *  _stack_addr;
-extern size_t  _stack_size;
-extern void *  _stack_bottom;
-extern void ** _stack_addrs;
-extern int  *  _stack_files;
-
-#define STACK_FREE_INPLACE 1
-#define STACK_FREE_ATTOP 0
-
-static inline
-void * stack_new(void * frame)
-{
-  size_t sz;
-  void * addr;
-
-  if (frame) {
-    SAFE_ASSERT(frame >= _stack_addr && frame < _stack_addr + _stack_size);
-    sz = _stack_addr + _stack_size - frame;
-    addr = malloc(sz);
-    DEBUG_PRINTV("stack_new: addr=%p size=%ld\n", addr, sz);
-  } else {
-    sz = _stack_size;
-    addr = malloc(sz) + _stack_size;
-  }
-
-  return addr;
-}
-
-static inline
-void stack_free(void * addr, int inplace)
-{
-  if (inplace) {
-    free(addr);
-  } else {
-    free(addr - _stack_size);
-  }
-}
+extern void * STACK_ADDR;
+extern void * STACK_BOTTOM;
+extern int  *  STACK_FILES;
+extern void ** STACK_ADDRS;
+extern intptr_t * STACK_OFFSETS;
 
 static inline
 void * stack_shptr(void * ptr, int id)
 {
-  SAFE_ASSERT(ptr >= _stack_addr && ptr <= _stack_bottom);
-  return _stack_addrs[id] + (ptr - _stack_addr);
+  SAFE_ASSERT(ptr >= STACK_ADDR && ptr <= STACK_BOTTOM);
+  return ptr + STACK_OFFSETS[id];
 }
 
 #define STACK_EXECUTE(stack, fcall) do { \
