@@ -75,11 +75,9 @@ static void tls_init(int id)
   }
 
   if (id == 0) {
-    frame_t * frame = malloc(sizeof(frame_t));
-    frame->top = _stack_bottom;
-    frame->btm = _stack_bottom;
-
-    _joint.frame = frame;
+    _joint.stack.top = _stack_bottom;
+    _joint.stack.btm = _stack_bottom;
+    _joint.stptr = &_joint.stack;
     _deq.jtptr = &_joint;
   }
 }
