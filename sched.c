@@ -60,18 +60,6 @@ static inline joint_t * promote(fibril_t * frptr, deque_t * deq)
   return jtptr;
 }
 
-static inline void import(joint_t * jtptr)
-{
-  /** Copy stack prefix. */
-  void * dest = jtptr->stptr->top;
-  void * addr = jtptr->stptr->top + jtptr->stptr->off;
-  size_t size = STACK_BOTTOM - dest;
-
-  memcpy(dest, addr, size);
-
-  jtptr->stptr->off = STACK_OFFSETS[_tid];
-}
-
 static inline void * steal(deque_t * deq)
 {
   lock(&deq->lock);
@@ -94,9 +82,11 @@ static inline void * steal(deque_t * deq)
   joint_t * jtptr = promote(stack_shptr(frptr, deq->tid), deq);
   unlock(&deq->lock);
 
-  import(jtptr);
+  joint_import(jtptr);
 
+  jtptr->stptr->off = STACK_OFFSETS[_tid];
   _deq.jtptr = jtptr;
+
   unlock(&jtptr->lock);
 
   return frptr;
@@ -124,7 +114,7 @@ void sched_work(int me, int nprocs)
     exit(0);
   } else {
     joint_t * jtptr = _exit_fr.jtp;
-    import(jtptr);
+    joint_import(jtptr);
     free(jtptr->stptr->top + jtptr->stptr->off);
     sched_resume(&_exit_fr);
   }
