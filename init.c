@@ -11,6 +11,7 @@
 #include "safe.h"
 #include "util.h"
 #include "debug.h"
+#include "deque.h"
 #include "joint.h"
 #include "sched.h"
 #include "stack.h"
@@ -65,20 +66,23 @@ static void tls_init(int id)
 
   barrier(_nprocs);
 
-  _deq.deqs = malloc(sizeof(tls_t *) * _nprocs);
+  DEQ.deqs = malloc(sizeof(tls_t *) * _nprocs);
 
   int i;
   for (i = 0; i < _nprocs; ++i) {
     if (i != id) {
-      _deq.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
+      DEQ.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
     }
   }
+
+  DEQ.buff = _tls.buff;
 
   if (id == 0) {
     _joint.stack.top = STACK_BOTTOM;
     _joint.stack.btm = STACK_BOTTOM;
     _joint.stptr = &_joint.stack;
-    _deq.jtptr = &_joint;
+
+    DEQ.jtptr = &_joint;
   }
 }
 

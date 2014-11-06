@@ -60,6 +60,7 @@ typedef struct {
     int head;
     int tail;
     int sense;
+    struct _fibril_t ** buff;
     struct _fibrile_joint_t * jtptr;
     struct _fibrile_deque_t **  deqs;
   } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
@@ -71,11 +72,8 @@ typedef struct {
 extern fibrile_tls_t fibrile_tls;
 #define fibrile_deq (fibrile_tls.deq)
 
-#include "debug.h"
-
-static inline void fibrile_push(struct _fibril_t * frptr)
+extern inline void fibrile_push(struct _fibril_t * frptr)
 {
-  DEBUG_PRINTV("push: frptr=%p tail=%d\n", frptr, fibrile_tls.deq.tail);
   fibrile_tls.buff[fibrile_tls.deq.tail++] = frptr;
 }
 
@@ -83,7 +81,7 @@ static inline void fibrile_push(struct _fibril_t * frptr)
 #define fibrile_lock(ptr) while (__sync_lock_test_and_set(ptr, 1))
 #define fibrile_unlock(ptr) __sync_lock_release(ptr)
 
-static inline int fibrile_pop()
+extern inline int fibrile_pop()
 {
   int T = fibrile_deq.tail;
 
@@ -112,7 +110,6 @@ static inline int fibrile_pop()
     fibrile_unlock(&fibrile_deq.lock);
   }
 
-  DEBUG_PRINTV("poped: frptr=%p tail=%d\n", fibrile_tls.buff[T], T);
   return 1;
 }
 

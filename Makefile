@@ -7,9 +7,11 @@ EXEC = fib
 INCS = \
 			 config.h \
 			 debug.h \
+			 deque.h \
 			 fibril.h \
 			 fibrile.h \
 			 fibrili.h \
+			 joint.h \
 			 page.h \
 			 safe.h \
 			 sched.h \
@@ -21,6 +23,7 @@ INCS = \
 
 SRCS = \
 			 exit.c \
+			 deque.c \
 			 fib.c \
 			 init.c \
 			 join.c \

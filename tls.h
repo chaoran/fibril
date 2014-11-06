@@ -3,17 +3,14 @@
 
 #include "fibrile.h"
 
-typedef struct _fibrile_deque_t deque_t;
-
 #define tls_t fibrile_tls_t
 #define _tls  fibrile_tls
-#define _deq  fibrile_deq
 
 /** Thread id. */
-#define _tid (_deq.tid)
+#define _tid (_tls.deq.tid)
 
 /** Process id. */
-#define _pid (_deq.pid)
+#define _pid (_tls.deq.pid)
 
 
 #endif /* end of include guard: TLS_H */
