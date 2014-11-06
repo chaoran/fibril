@@ -23,7 +23,6 @@ tls_t _tls;
 
 int     _nprocs;
 int  *  _pids;
-void ** _stacks;
 
 joint_t _joint;
 
@@ -74,8 +73,6 @@ static void tls_init(int id)
       DEQ.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
     }
   }
-
-  DEQ.buff = _tls.buff;
 
   if (id == 0) {
     _joint.stack.top = STACK_BOTTOM;

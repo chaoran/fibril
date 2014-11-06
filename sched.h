@@ -14,7 +14,7 @@ static inline __attribute__ ((noreturn))
 void sched_restart()
 {
   int id = fibrile_deq.tid;
-  STACK_EXECUTE(_stacks[id], sched_work(id, _nprocs));
+  STACK_EXECUTE(STACK_ADDRS[id], sched_work(id, _nprocs));
 }
 
 static inline __attribute__ ((noreturn))

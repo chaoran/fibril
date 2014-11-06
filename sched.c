@@ -23,8 +23,10 @@ void sched_work(int me, int nprocs)
     joint_t * jtptr = frptr->jtp;
 
     joint_import(jtptr);
-    unlock(&jtptr->lock);
+    DEQ.jtptr = jtptr;
+    jtptr->stptr->off = STACK_OFFSETS[_tid];
 
+    unlock(&jtptr->lock);
     sched_resume(frptr);
   }
 
@@ -35,8 +37,12 @@ void sched_work(int me, int nprocs)
     exit(0);
   } else {
     joint_t * jtptr = _exit_fr.jtp;
+
+    lock(&jtptr->lock);
     joint_import(jtptr);
     free(jtptr->stptr->top + jtptr->stptr->off);
+    unlock(&jtptr->lock);
+
     sched_resume(&_exit_fr);
   }
 }
@@ -49,6 +55,7 @@ void sched_exit()
     fibril_make(&_exit_fr);
 
     fibrile_save(&_exit_fr, &&AFTER_EXIT);
+    _joint.lock = 1;
     _joint.stptr->top = _exit_fr.rsp;
     _exit_fr.jtp = &_joint;
 

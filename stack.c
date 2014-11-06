@@ -61,7 +61,7 @@ void stack_init(int nprocs)
   );
   free(stack - size);
 
-  STACK_OFFSETS[0] = STACK_ADDR - shmap_mmap(NULL, size, STACK_FILES[0]);
+  STACK_OFFSETS[0] = shmap_mmap(NULL, size, STACK_FILES[0]) - STACK_ADDR;
 
   char path[FILENAME_LIMIT];
   int i;
@@ -73,7 +73,7 @@ void stack_init(int nprocs)
     STACK_FILES[i] = file;
 
     void * addr = shmap_mmap(NULL, size, file);
-    STACK_OFFSETS[i] = STACK_ADDR - addr;
+    STACK_OFFSETS[i] = addr - STACK_ADDR;
   }
 
   /** Allocate space for scheduler stacks. */

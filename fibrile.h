@@ -60,7 +60,6 @@ typedef struct {
     int head;
     int tail;
     int sense;
-    struct _fibril_t ** buff;
     struct _fibrile_joint_t * jtptr;
     struct _fibrile_deque_t **  deqs;
   } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));

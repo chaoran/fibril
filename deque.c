@@ -1,3 +1,4 @@
+#include "tls.h"
 #include "util.h"
 #include "debug.h"
 #include "deque.h"
@@ -7,7 +8,7 @@
 void fibrile_push(fibril_t * frptr)
 {
   DEBUG_PRINTV("push: frptr=%p tail=%d\n", frptr, DEQ.tail);
-  DEQ.buff[DEQ.tail++] = frptr;
+  _tls.buff[DEQ.tail++] = frptr;
 }
 
 int fibrile_pop()
@@ -39,7 +40,7 @@ int fibrile_pop()
     unlock(&DEQ.lock);
   }
 
-  DEBUG_PRINTV("poped: frptr=%p tail=%d\n", DEQ.buff[T], T);
+  DEBUG_PRINTV("poped: frptr=%p tail=%d\n", _tls.buff[T], T);
   return 1;
 }
 
@@ -58,9 +59,9 @@ fibril_t * deque_steal(deque_t * deq)
     return NULL;
   }
 
-  fibril_t * frptr = deq->buff[H];
+  fibril_t * frptr = ((tls_t *) deq)->buff[H];
   SAFE_ASSERT(frptr != NULL);
-  DEBUG_PRINTV("steal: frptr=%p head=%d\n", frptr, H);
+  DEBUG_PRINTV("steal: victim=%d frptr=%p head=%d\n", deq->tid, frptr, H);
 
   frptr = (void *) frptr + STACK_OFFSETS[deq->tid];
 
@@ -75,6 +76,7 @@ fibril_t * deque_steal(deque_t * deq)
     deq->jtptr = jtptr;
   }
 
+  unlock(&deq->lock);
   return frptr;
 }
 
