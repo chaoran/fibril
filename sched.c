@@ -11,7 +11,6 @@ static fibril_t _exit_fr;
 
 void sched_work(int me, int nprocs)
 {
-  /** Allocate a joint before stealing. */
   while (!trylock(&_done)) {
     int victim = rand() % nprocs;
 
