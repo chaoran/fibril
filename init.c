@@ -35,14 +35,14 @@ static void globe_init(int nprocs)
   void * dat_start = PAGE_ALIGN_DOWN(&__data_start);
   void * dat_end   = PAGE_ALIGN_UP(&_end);
 
-  DEBUG_PRINTI("data: %p ~ %p\n", dat_start, dat_end);
-  SAFE_ASSERT(PAGE_ALIGNED(dat_start) && PAGE_ALIGNED(dat_end));
+  DEBUG_DUMP(2, "data", (dat_start, "%p"), (dat_end, "%p"));
+  DEBUG_ASSERT(PAGE_ALIGNED(dat_start) && PAGE_ALIGNED(dat_end));
 
   void * tls_start = &_tls;
   void * tls_end   = tls_start + sizeof(_tls);
 
-  DEBUG_PRINTI("tls: %p ~ %p\n", tls_start, tls_end);
-  SAFE_ASSERT(PAGE_ALIGNED(tls_start) && PAGE_ALIGNED(tls_end));
+  DEBUG_DUMP(2, "tls", (tls_start, "%p"), (tls_end, "%p"));
+  DEBUG_ASSERT(PAGE_ALIGNED(tls_start) && PAGE_ALIGNED(tls_end));
 
   if (dat_start < tls_start) {
     shmap_copy(dat_start, tls_start - dat_start, "data");
@@ -113,9 +113,10 @@ int fibril_init(int nprocs)
   /** Create workers. */
   int i;
   for (i = 1; i < nprocs; ++i) {
-    SAFE_RETURN(_pids[i], clone(child_main, STACK_ADDRS[i],
-          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD,
-          (void *) (size_t) i));
+    SAFE_NNCALL(
+        _pids[i] = clone(child_main, STACK_ADDRS[i],
+          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD, (void *) (size_t) i)
+    );
   }
 
   tls_init(0);

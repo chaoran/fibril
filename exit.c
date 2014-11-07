@@ -13,8 +13,8 @@ int fibril_exit()
   sched_exit();
 
   for (i = 1; i < _nprocs; ++i) {
-    SAFE_FNCALL(waitpid(_pids[i], &status, 0));
-    SAFE_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
+    SAFE_NNCALL(waitpid(_pids[i], &status, 0));
+    DEBUG_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
   }
 
   free(_pids);

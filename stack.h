@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include "debug.h"
 
 void   stack_init(int nprocs);
 void   stack_init_child(int id);
@@ -18,7 +19,7 @@ extern intptr_t * STACK_OFFSETS;
 static inline
 void * stack_shptr(void * ptr, int id)
 {
-  SAFE_ASSERT(ptr >= STACK_ADDR && ptr <= STACK_BOTTOM);
+  DEBUG_ASSERT(ptr >= STACK_ADDR && ptr <= STACK_BOTTOM);
   return ptr + STACK_OFFSETS[id];
 }
 

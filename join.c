@@ -22,7 +22,7 @@ static int commit(void * top, void * btm, intptr_t off,
     void * dest = addr + off;
     size_t size = data[i].size;
 
-    SAFE_ASSERT(addr + size <= btm);
+    DEBUG_ASSERT(addr + size <= btm);
 
     switch (size) {
       case 0: break;
@@ -49,7 +49,7 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 
   joint_t * parent = jtptr->parent;
 
-  SAFE_ASSERT(parent->stptr->top <= btm);
+  DEBUG_ASSERT(parent->stptr->top <= btm);
   top = btm;
 
   while (left > 0 && NULL != (jtptr = parent)) {
@@ -66,7 +66,7 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
     parent = jtptr->parent;
     unlock(&jtptr->lock);
 
-    SAFE_ASSERT(parent->stptr->top <= btm);
+    DEBUG_ASSERT(parent->stptr->top <= btm);
     top = btm;
   }
 }
@@ -74,7 +74,7 @@ static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 int fibrile_join(const fibril_t * frptr)
 {
   joint_t * jtptr = frptr->jtp;
-  SAFE_ASSERT(jtptr != NULL);
+  DEBUG_ASSERT(jtptr != NULL);
 
   lock(&jtptr->lock);
 
@@ -86,12 +86,12 @@ int fibrile_join(const fibril_t * frptr)
     unlock(&jtptr->lock);
     free(jtptr);
 
-    DEBUG_PRINTC("join (success): frptr=%p jtptr=%p\n", frptr, jtptr);
+    DEBUG_DUMP(3, "join (success):", (frptr, "%p"), (jtptr, "%p"));
   } else {
     jtptr->count = count - 1;
 
-    DEBUG_PRINTC("join (failed): frptr=%p jtptr=%p count=%d\n",
-        frptr, jtptr, count);
+    DEBUG_DUMP(3, "join (failed):", (frptr, "%p"), (jtptr, "%p"),
+        (jtptr->count, "%d"));
   }
 
   return success;
@@ -100,9 +100,10 @@ int fibrile_join(const fibril_t * frptr)
 void fibrile_yield(const fibril_t * frptr)
 {
   joint_t * jtptr = frptr->jtp;
-  SAFE_ASSERT(jtptr != NULL);
+  DEBUG_ASSERT(jtptr != NULL);
 
-  void * dest = malloc(jtptr->stptr->btm - jtptr->stptr->top);
+  void * dest;
+  SAFE_NZCALL(dest = malloc(jtptr->stptr->btm - jtptr->stptr->top));
   jtptr->stptr->off = dest - jtptr->stptr->top;
 
   joint_export(jtptr);
@@ -114,7 +115,7 @@ void fibrile_yield(const fibril_t * frptr)
 void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 {
   joint_t * jtptr = DEQ.jtptr;
-  SAFE_ASSERT(jtptr != NULL);
+  DEBUG_ASSERT(jtptr != NULL);
 
   lock(&jtptr->lock);
 
@@ -131,14 +132,14 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
     free(jtptr->stptr->top + jtptr->stptr->off);
     free(jtptr);
 
-    DEBUG_PRINTC("resume (success): frptr=%p jtptr=%p\n", frptr, jtptr);
+    DEBUG_DUMP(1, "resume (success):", (frptr, "%p"), (jtptr, "%p"));
     sched_resume(frptr);
   } else {
     jtptr->count = count - 1;
     unlock(&jtptr->lock);
 
-    DEBUG_PRINTC("resume (failed): frptr=%p jtptr=%p count=%d\n",
-        frptr, jtptr, count);
+    DEBUG_DUMP(1, "resume (failed):", (frptr, "%p"), (jtptr, "%p"),
+        (jtptr->count, "%d"));
     sched_restart();
   }
 }

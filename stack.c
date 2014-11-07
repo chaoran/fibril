@@ -24,7 +24,7 @@ intptr_t * STACK_OFFSETS;
 static void find_stack(void ** addr, size_t * size)
 {
   FILE * maps;
-  SAFE_RETURN(maps, fopen("/proc/self/maps", "r"));
+  SAFE_NNCALL(maps = fopen("/proc/self/maps", "r"));
 
   void * start;
   void * end;
@@ -37,12 +37,12 @@ static void find_stack(void ** addr, size_t * size)
       *addr = start;
       *size = end - start;
 
-      DEBUG_PRINTI("stack: addr=%p, size=%ld\n", *addr, *size);
+      DEBUG_DUMP(2, "stack:", (start, "%p"), (end, "%p"));
       break;
     }
   }
 
-  SAFE_FNCALL(fclose(maps));
+  SAFE_NNCALL(fclose(maps));
 }
 
 void stack_init(int nprocs)
@@ -52,13 +52,18 @@ void stack_init(int nprocs)
 
   STACK_BOTTOM = STACK_ADDR + size;
 
-  STACK_FILES = malloc(sizeof(int) * nprocs);
-  STACK_OFFSETS = malloc(sizeof(intptr_t) * nprocs);
+  SAFE_NZCALL(STACK_FILES = malloc(sizeof(int) * nprocs));
+  SAFE_NZCALL(STACK_OFFSETS = malloc(sizeof(intptr_t) * nprocs));
 
-  void * stack = malloc(size) + size;
+  void * stack;
+
+  SAFE_NZCALL(stack = malloc(size));
+  stack += size;
+
   STACK_EXECUTE(stack,
       STACK_FILES[0] = shmap_copy(STACK_ADDR, size, "stack_0")
   );
+
   free(stack - size);
 
   STACK_OFFSETS[0] = shmap_mmap(NULL, size, STACK_FILES[0]) - STACK_ADDR;
@@ -77,16 +82,17 @@ void stack_init(int nprocs)
   }
 
   /** Allocate space for scheduler stacks. */
-  STACK_ADDRS = malloc(sizeof(void * [nprocs]));
+  SAFE_NZCALL(STACK_ADDRS = malloc(sizeof(void * [nprocs])));
 
   for (i = 0; i < nprocs; ++i) {
-    STACK_ADDRS[i] = malloc(size) + size;
+    SAFE_NZCALL(STACK_ADDRS[i] = malloc(size));
+    STACK_ADDRS[i] += size;
   }
 }
 
 void stack_init_child(int id)
 {
-  SAFE_ASSERT(id != 0);
+  DEBUG_ASSERT(id != 0);
   shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, STACK_FILES[id]);
 }
 

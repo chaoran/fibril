@@ -28,11 +28,13 @@ extern joint_t _joint;
 static inline joint_t * joint_create(
     const fibril_t * frptr, const deque_t * deq)
 {
-  SAFE_ASSERT(frptr->jtp == NULL);
-  SAFE_ASSERT(frptr->rsp != NULL);
-  SAFE_ASSERT(deq->jtptr != NULL);
+  DEBUG_ASSERT(frptr->jtp == NULL);
+  DEBUG_ASSERT(frptr->rsp != NULL);
+  DEBUG_ASSERT(deq->jtptr != NULL);
 
-  joint_t * jtptr = malloc(sizeof(joint_t));
+  joint_t * jtptr;
+
+  SAFE_NZCALL(jtptr = malloc(sizeof(joint_t)));
   jtptr->lock = 1;
   jtptr->count = 1;
 
@@ -60,8 +62,10 @@ static inline void joint_import(const joint_t * jtptr)
 
   memcpy(dest, addr, size);
 
-  DEBUG_PRINTV("import: jtptr=%p top=%p btm=%p off=%ld\n", jtptr,
-      jtptr->stptr->top, jtptr->stptr->btm, jtptr->stptr->off);
+  DEBUG_DUMP(3, "import:", (jtptr, "%p"),
+      (jtptr->stptr->top, "%p"),
+      (jtptr->stptr->btm, "%p"),
+      (jtptr->stptr->off, "%ld"));
 }
 
 static inline void joint_export(const joint_t * jtptr)
@@ -72,8 +76,10 @@ static inline void joint_export(const joint_t * jtptr)
 
   memcpy(dest, addr, size);
 
-  DEBUG_PRINTV("export: jtptr=%p top=%p btm=%p off=%ld\n", jtptr,
-      jtptr->stptr->top, jtptr->stptr->btm, jtptr->stptr->off);
+  DEBUG_DUMP(3, "export:", (jtptr, "%p"),
+      (jtptr->stptr->top, "%p"),
+      (jtptr->stptr->btm, "%p"),
+      (jtptr->stptr->off, "%ld"));
 }
 
 #endif /* end of include guard: JOINT_H */

@@ -9,7 +9,7 @@ long __attribute__ ((hot)) fib(long n)
 {
   if (n < 2) return n;
 
-  DEBUG_PRINT("computing fib(%ld)\n", n);
+  DEBUG_DUMP(3, "fib:", (n, "%ld"));
   fibril_t fr;
   fibril_make(&fr);
 
@@ -32,8 +32,8 @@ AFTER_FORK: break;
   fibril_join(&fr);
   m = x + y;
 
-  DEBUG_PRINT("fib(%ld)=%ld\n", n, m);
-  SAFE_ASSERT(n >= 2 && n <= 10 && m == table[n]);
+  DEBUG_DUMP(3, "fib:", (n, "%ld"), (m, "%ld"));
+  DEBUG_ASSERT(n >= 2 && n <= 10 && m == table[n]);
   return m;
 }
 

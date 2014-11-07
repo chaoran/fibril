@@ -38,7 +38,7 @@ static shmap_t * find(shmap_t * head, void * addr)
     map = next;
   }
 
-  SAFE_ASSERT(map != NULL);
+  DEBUG_ASSERT(map != NULL);
   return map;
 }
 
@@ -122,30 +122,32 @@ static void * shmap(void * addr, size_t size, int file, off_t off)
     flag |= MAP_FIXED;
   }
 
-  addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
+  SAFE_NNCALL(
+      addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off)
+  );
 
-  DEBUG_PRINTV("shmap: file=%d addr=%p size=%ld off=%ld\n",
-      file, addr, size, off);
-  SAFE_ASSERT(addr != MAP_FAILED);
-
+  DEBUG_DUMP(3, "shmap:", (file, "%d"), (addr, "%p"),
+      (size, "%ld"), (off, "%ld"));
   return addr;
 }
 
 static void segfault_sa(int signum, siginfo_t * info, void * ctxt)
 {
-  SAFE_ASSERT(signum == SIGSEGV);
+  DEBUG_ASSERT(signum == SIGSEGV);
 
   void * addr = info->si_addr;
   shmap_t * map = find(NULL, addr);
 
-  DEBUG_PRINTC("segfault_sa: addr=%p map={addr=%p size=%ld file=%d}\n",
-      addr, map->addr, map->size, map->file.sh);
+  DEBUG_DUMP(1, "segfault_sa:", (addr, "%p"), (map->addr, "%p"),
+      (map->size, "%ld"), (map->file.sh, "%d"));
 
-  SAFE_ASSERT(map->addr <= addr && map->addr + map->size > addr);
-  SAFE_ASSERT(map->otid != -1);
-  shmap(map->addr, map->size, map->file.sh, map->off);
-  /*sigaction(SIGSEGV, &_default_sa, NULL);*/
-  /*raise(signum);*/
+  if (map->addr <= addr && map->addr + map->size > addr) {
+    shmap(map->addr, map->size, map->file.sh, map->off);
+  } else {
+    DEBUG_BREAK(1);
+    sigaction(SIGSEGV, &_default_sa, NULL);
+    raise(signum);
+  }
 }
 
 void shmap_init(int nprocs)
@@ -173,11 +175,11 @@ int shmap_open(size_t size, const char * name)
   }
 
   int file;
-  SAFE_RETURN(file, shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
-  SAFE_FNCALL(ftruncate(file, size));
+  SAFE_NNCALL(file = shm_open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR));
+  SAFE_NNCALL(ftruncate(file, size));
+  SAFE_NNCALL(shm_unlink(path));
 
-  DEBUG_PRINTV("shmap_open: path=%s file=%d size=%ld\n", path, file, size);
-  SAFE_FNCALL(shm_unlink(path));
+  DEBUG_DUMP(3, "shmap_open:", (path, "%s"), (file, "%d"), (size, "%ld"));
   return file;
 }
 
@@ -196,7 +198,7 @@ int shmap_copy(void * addr, size_t size, const char * name)
   void * buf = shmap(NULL, size, shm, 0);
 
   memcpy(buf, addr, size);
-  SAFE_FNCALL(munmap(buf, size));
+  SAFE_NNCALL(munmap(buf, size));
   shmap_mmap(addr, size, shm);
 
   return shm;
@@ -216,14 +218,14 @@ void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
   flag |= MAP_SHARED;
 
   if (!(flag & MAP_ANONYMOUS)) {
-    SAFE_ASSERT(file != -1);
+    DEBUG_ASSERT(file != -1);
     addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
     if (addr != MAP_FAILED) create(addr, size, file, off);
     return addr;
   }
 
   /** Change anonymous to file-backed. */
-  SAFE_ASSERT(file == -1);
+  DEBUG_ASSERT(file == -1);
   flag ^= MAP_ANONYMOUS;
 
   file = shmap_open(size, NULL);
@@ -231,7 +233,7 @@ void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
   if (ret == MAP_FAILED) return ret;
 
   addr = ret;
-  DEBUG_PRINTV("mmap: file=%d addr=%p size=%ld\n", file, addr, size);
+  DEBUG_DUMP(3, "mmap:", (file, "%d"), (addr, "%p"), (size, "%ld"));
 
   /** Avoid new mapping overwrite old ones. */
   const shmap_t * map = find(NULL, addr);

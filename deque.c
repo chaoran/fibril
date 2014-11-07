@@ -7,8 +7,12 @@
 
 void fibrile_push(fibril_t * frptr)
 {
-  DEBUG_PRINTV("push: frptr=%p tail=%d\n", frptr, DEQ.tail);
-  _tls.buff[DEQ.tail++] = frptr;
+  int T = DEQ.tail;
+
+  _tls.buff[T] = frptr;
+  DEQ.tail = T + 1;
+
+  DEBUG_DUMP(3, "push:", (frptr, "%p"), (T, "%d"));
 }
 
 int fibrile_pop()
@@ -40,7 +44,10 @@ int fibrile_pop()
     unlock(&DEQ.lock);
   }
 
-  DEBUG_PRINTV("poped: frptr=%p tail=%d\n", _tls.buff[T], T);
+  void * frptr = _tls.buff[T];
+
+  DEBUG_DUMP(3, "pop:", (frptr, "%p"), (T, "%d"));
+  DEBUG_ASSERT(frptr != NULL);
   return 1;
 }
 
@@ -60,8 +67,8 @@ fibril_t * deque_steal(deque_t * deq)
   }
 
   fibril_t * frptr = ((tls_t *) deq)->buff[H];
-  SAFE_ASSERT(frptr != NULL);
-  DEBUG_PRINTV("steal: victim=%d frptr=%p head=%d\n", deq->tid, frptr, H);
+  DEBUG_ASSERT(frptr != NULL);
+  DEBUG_DUMP(1, "steal:", (deq->tid, "%d"), (frptr, "%p"), (H, "%d"));
 
   frptr = (void *) frptr + STACK_OFFSETS[deq->tid];
 
