@@ -3,7 +3,7 @@
 #include "debug.h"
 #include "fibril.h"
 
-static long table[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55 };
+static __attribute__((section(".fibril_shm"))) long table[] = { 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55 };
 
 long __attribute__ ((hot)) fib(long n)
 {
@@ -32,20 +32,16 @@ AFTER_FORK: break;
   fibril_join(&fr);
   m = x + y;
 
-  DEBUG_DUMP(3, "fib:", (n, "%ld"), (m, "%ld"));
+  DEBUG_DUMP(3, "fib:", (n, "%ld"), (x, "%ld"), (y, "%ld"), (m, "%ld"));
   DEBUG_ASSERT(n >= 2 && n <= 10 && m == table[n]);
   return m;
 }
 
 int main(int argc, const char *argv[])
 {
-  fibril_init(4);
-
   int n = 6;
   long m = fib(n);
 
   printf("fib(%d) = %ld\n", n, m);
-  fibril_exit();
-
   return 0;
 }

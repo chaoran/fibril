@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -g -Wall -DENABLE_SAFE
+CFLAGS = -g -Wall
+LDFLAGS = -Wl,-T -Wl,fibril.ld
 LDLIBS = -lrt -lstdc++ -lm -ldl
 
 EXEC = fib
@@ -10,16 +11,14 @@ INCS = \
 			 deque.h \
 			 fibril.h \
 			 fibrile.h \
-			 fibrili.h \
 			 joint.h \
 			 page.h \
 			 safe.h \
 			 sched.h \
 			 shmap.h \
 			 stack.h \
-			 tls.h \
+			 tlmap.h \
 			 util.h \
-			 vtmem.h \
 
 SRCS = \
 			 exit.c \
@@ -30,6 +29,7 @@ SRCS = \
 			 sched.c \
 			 shmap.c \
 			 stack.c \
+			 tlmap.c \
 
 HOARD_DIR = Hoard/src
 HOARD_OBJS = $(addprefix $(HOARD_DIR)/, libhoard.o unixtls.o gnuwrapper.o)
@@ -44,13 +44,13 @@ all: $(EXEC)
 debug: CFLAGS += -DENABLE_DEBUG
 debug: clean $(EXEC)
 
-debug-l1: CFLAGS += -DENABLE_DEBUG -DDEBUG_LEVEL=1
+debug-l1: CFLAGS += -DENABLE_DEBUG -DDEBUG_WAIT=1 -DDEBUG_LEVEL=1
 debug-l1: clean $(EXEC)
 
-debug-l2: CFLAGS += -DENABLE_DEBUG -DDEBUG_LEVEL=2
+debug-l2: CFLAGS += -DENABLE_DEBUG -DDEBUG_WAIT=1 -DDEBUG_LEVEL=2
 debug-l2: clean $(EXEC)
 
-debug-l3: CFLAGS += -DENABLE_DEBUG -DDEBUG_LEVEL=3
+debug-l3: CFLAGS += -DENABLE_DEBUG -DDEBUG_WAIT=1 -DDEBUG_LEVEL=3
 debug-l3: clean $(EXEC)
 
 $(HOARD_OBJS):

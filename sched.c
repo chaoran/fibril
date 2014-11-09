@@ -1,70 +1,106 @@
-#include "tls.h"
 #include "util.h"
 #include "debug.h"
 #include "deque.h"
 #include "joint.h"
 #include "sched.h"
-#include "fibrili.h"
+#include "shmap.h"
+#include "tlmap.h"
+#include "fibril.h"
 
-static int _done = 1;
-static fibril_t _exit_fr;
+static deque_t ** _deqs;
+static int __fibril_shared__ _done = 1;
 
-void sched_work(int me, int nprocs)
+extern int _nprocs;
+
+void sched_init()
 {
+  int nprocs = _nprocs;
+  SAFE_NZCALL(_deqs = malloc(sizeof(deque_t * [nprocs])));
+
+  int i;
+  for (i = 0; i < nprocs; ++i) {
+    _deqs[i] = (void *) &fibrile_deq + TLS_OFFSETS[i];
+  }
+
+  joint_t * jtptr = joint_create();
+  jtptr->stack.top = STACK_BOTTOM;
+  jtptr->stack.btm = STACK_BOTTOM;
+  jtptr->stack.off = STACK_OFFSETS[0];
+
+  fibrile_deq.jtptr = jtptr;
+
+  DEBUG_DUMP(2, "sched_init:", (jtptr, "%p"), (jtptr->stptr->off, "%ld"));
+}
+
+void sched_work(int me)
+{
+  int nprocs = _nprocs;
+  joint_t * jtptr = joint_create();
+
   while (!trylock(&_done)) {
     int victim = rand() % nprocs;
 
     if (victim == me) continue;
 
-    fibril_t * frptr = deque_steal(DEQ.deqs[victim]);
+    fibril_t * frptr = deque_steal(_deqs[victim], victim, jtptr);
 
     if (frptr == NULL) continue;
 
-    joint_t * jtptr = frptr->jtp;
+    if (frptr->jtp != jtptr) {
+      free(jtptr);
+      jtptr = frptr->jtp;
+    }
 
-    joint_import(jtptr);
-    DEQ.jtptr = jtptr;
-    jtptr->stptr->off = STACK_OFFSETS[_tid];
+    void * dest = jtptr->stptr->top;
+    void * addr = dest + STACK_OFFSETS[victim];
+    size_t size = STACK_BOTTOM - dest;
 
+    memcpy(dest, addr, size);
+
+    fibrile_deq.jtptr = jtptr;
     unlock(&jtptr->lock);
     sched_resume(frptr);
   }
 
   unlock(&_done);
+  exit(0);
+  /*if (me) exit(0);*/
+  /*else sched_exit(-1);*/
 
-  if (me) {
-    barrier(_nprocs);
-    exit(0);
-  } else {
-    joint_t * jtptr = _exit_fr.jtp;
-
-    lock(&jtptr->lock);
-    joint_import(jtptr);
-    free(jtptr->stptr->top + jtptr->stptr->off);
-    unlock(&jtptr->lock);
-
-    sched_resume(&_exit_fr);
-  }
+  /*unreachable();*/
 }
 
-void sched_exit()
+void sched_exit(int id)
 {
-  if (_tid == 0) {
-    unlock(&_done);
-  } else {
-    fibril_make(&_exit_fr);
+  /*static __fibril_shared__ fibril_t fr;*/
 
-    fibrile_save(&_exit_fr, &&AFTER_EXIT);
-    _joint.lock = 1;
-    _joint.stptr->top = _exit_fr.rsp;
-    _exit_fr.jtp = &_joint;
+  /*switch (id) {*/
+    /*case  0: {*/
+               /*unlock(&_done);*/
+               /*break;*/
+             /*}*/
+    /*case -1: {*/
+               /*joint_t * jtptr = fr.jtp;*/
+               /*jtptr->stack.top = fr.rsp;*/
+               /*joint_import(jtptr);*/
+               /*sched_resume(&fr);*/
+             /*}*/
+    /*default: {*/
+               /*fibril_make(&fr);*/
+               /*fibrile_save(&fr, &&AFTER_EXIT);*/
 
-    unlock(&_done);
-    fibrile_yield(&_exit_fr);
-  }
+               /*fibrile_deq.jtptr->stack.off = STACK_OFFSETS[id];*/
+               /*fr.jtp = fibrile_deq.jtptr;*/
 
-AFTER_EXIT:
-  barrier(_nprocs);
+               /*unlock(&_done);*/
+               /*sched_restart();*/
+             /*}*/
+  /*}*/
+
+/*AFTER_EXIT:*/
+  unlock(&_done);
+  /*free(fr.jtp);*/
+  free(_deqs);
   return;
 }
 

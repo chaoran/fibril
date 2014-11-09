@@ -5,12 +5,16 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#include "tls.h"
 #include "safe.h"
+#include "page.h"
 #include "util.h"
 #include "debug.h"
+#include "tlmap.h"
 #include "config.h"
 #include "fibrili.h"
+
+char __data_start, _end;
+char _fibril_shm_start, _fibril_shm_end;
 
 typedef struct _shmap_t {
   struct _shmap_t * next;
@@ -62,20 +66,20 @@ static void create(void * addr, size_t size, int file, off_t off)
 
   if (prev->addr == addr && prev->size == size) {
     /** Replace the previous map. */
-    if (prev->otid == _tid) {
+    if (prev->otid == TID) {
       prev->file.sh = file;
     }
 
     /** Fill thread local map. */
     else if (prev->otid == -1) {
-      prev->file.tl[_tid] = file;
+      prev->file.tl[TID] = file;
     }
 
     /** Make a thread local mapping. */
     else {
       int * files = malloc(sizeof(int [_nprocs]));
       files[prev->otid] = prev->file.sh;
-      files[_tid] = file;
+      files[TID] = file;
 
       prev->file.tl = files;
       prev->otid = -1;
@@ -150,17 +154,6 @@ static void segfault_sa(int signum, siginfo_t * info, void * ctxt)
   }
 }
 
-void shmap_init(int nprocs)
-{
-  /** Setup SIGSEGV signal handler. */
-  struct sigaction sa;
-  sa.sa_sigaction = segfault_sa;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_SIGINFO;
-
-  sigaction(SIGSEGV, &sa, &_default_sa);
-}
-
 int shmap_open(size_t size, const char * name)
 {
   static size_t suffix = 0;
@@ -169,9 +162,9 @@ int shmap_open(size_t size, const char * name)
   char path[FILENAME_LIMIT];
 
   if (name) {
-    sprintf(path, "/%s.%d.%s" , prefix, _pid, name);
+    sprintf(path, "/%s.%d.%s" , prefix, PID, name);
   } else {
-    sprintf(path, "/%s.%d.%ld", prefix, _pid, fadd(&suffix, 1));
+    sprintf(path, "/%s.%d.%ld", prefix, PID, fadd(&suffix, 1));
   }
 
   int file;
@@ -203,6 +196,34 @@ int shmap_copy(void * addr, size_t size, const char * name)
 
   return shm;
 }
+
+void shmap_init()
+{
+  void * addr = PAGE_ALIGN_DOWN(&__data_start);
+  size_t size = PAGE_ALIGN_UP(&_end) - addr;
+
+  DEBUG_DUMP(2, "shm_init_app:", (addr, "%p"), (size, "%ld"));
+  DEBUG_ASSERT(PAGE_ALIGNED(addr) && PAGE_DIVISIBLE(size));
+
+  shmap_copy(addr, size, "data");
+
+  addr = &_fibril_shm_start;
+  size = &_fibril_shm_end - (char *) addr;
+
+  DEBUG_DUMP(2, "shm_init_lib:", (addr, "%p"), (size, "%ld"));
+  DEBUG_ASSERT(PAGE_ALIGNED(addr) && PAGE_DIVISIBLE(size));
+
+  shmap_copy(addr, size, "shared");
+
+  /** Setup SIGSEGV signal handler. */
+  struct sigaction sa;
+  sa.sa_sigaction = segfault_sa;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_SIGINFO;
+
+  sigaction(SIGSEGV, &sa, &_default_sa);
+}
+
 
 /**
  * Overwrite mmap calls.

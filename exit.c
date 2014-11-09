@@ -3,23 +3,27 @@
 #include "safe.h"
 #include "sched.h"
 #include "stack.h"
-#include "fibrili.h"
+#include "tlmap.h"
 
-int fibril_exit()
+extern int _nprocs;
+
+void __attribute__ ((destructor)) finalize()
 {
-  int i;
-  int status;
+  sched_exit(TID);
 
-  sched_exit();
+  /*int i;*/
+  /*int status;*/
+  /*int nprocs = _nprocs;*/
 
-  for (i = 1; i < _nprocs; ++i) {
-    SAFE_NNCALL(waitpid(_pids[i], &status, 0));
-    DEBUG_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));
-  }
+  /*for (i = 1; i < nprocs; ++i) {*/
+    /*if (wait(&status) == -1) {*/
+      /*SAFE_ASSERT(errno == ECHILD);*/
+      /*break;*/
+    /*}*/
 
-  free(_pids);
-  stack_finalize(_nprocs);
+    /*DEBUG_ASSERT(WIFEXITED(status) && 0 == WEXITSTATUS(status));*/
+  /*}*/
 
-  return 0;
+  if (TID == 0) stack_free();
 }
 

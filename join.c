@@ -1,18 +1,22 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "tls.h"
 #include "safe.h"
 #include "util.h"
 #include "sched.h"
 #include "joint.h"
 #include "stack.h"
+#include "tlmap.h"
+#include "fibril.h"
 
-static int commit(void * top, void * btm, intptr_t off,
-    const data_t * data, size_t n)
+static int commit(const joint_t * jtptr, const data_t * data, size_t n)
 {
   int l = 0;
   int i;
+
+  void * top   = jtptr->stptr->top;
+  void * btm   = jtptr->stptr->btm;
+  intptr_t off = jtptr->stptr->off;
 
   for (i = 0; i < n; ++i) {
     void * addr = data[i].addr;
@@ -33,6 +37,8 @@ static int commit(void * top, void * btm, intptr_t off,
       default: memcpy(dest, addr, size);
     }
 
+    DEBUG_DUMP(3, "commit:", (jtptr, "%p"), (jtptr->stptr, "%p"), (dest, "%p"),
+        (*((long *) addr), "%ld"));
     l++;
   }
 
@@ -41,33 +47,18 @@ static int commit(void * top, void * btm, intptr_t off,
 
 static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
 {
-  void * top = jtptr->stptr->top;
-  void * btm = jtptr->stptr->btm;
-  intptr_t off = jtptr->stptr->off;
-
-  size_t left = n - commit(top, btm, off, data, n);
+  size_t left = n - commit(jtptr, data, n);
 
   joint_t * parent = jtptr->parent;
 
-  DEBUG_ASSERT(parent->stptr->top <= btm);
-  top = btm;
-
   while (left > 0 && NULL != (jtptr = parent)) {
-    btm = jtptr->stptr->btm;
-
-    if (btm <= top) continue;
-
     lock(&jtptr->lock);
 
-    off = jtptr->stptr->off;
-    left -= commit(top, btm, off, data, n);
+    left -= commit(jtptr, data, n);
 
     /** Read the parent pointer before unlock. */
     parent = jtptr->parent;
     unlock(&jtptr->lock);
-
-    DEBUG_ASSERT(parent->stptr->top <= btm);
-    top = btm;
   }
 }
 
@@ -82,11 +73,12 @@ int fibrile_join(const fibril_t * frptr)
   int success = (count == 0);
 
   if (success) {
-    DEQ.jtptr = jtptr->parent;
+    fibrile_deq.jtptr = jtptr->parent;
     unlock(&jtptr->lock);
     free(jtptr);
 
-    DEBUG_DUMP(3, "join (success):", (frptr, "%p"), (jtptr, "%p"));
+    DEBUG_DUMP(3, "join (success):", (frptr, "%p"), (jtptr, "%p"),
+        (fibrile_deq.jtptr, "%p"));
   } else {
     jtptr->count = count - 1;
 
@@ -114,7 +106,7 @@ void fibrile_yield(const fibril_t * frptr)
 
 void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 {
-  joint_t * jtptr = DEQ.jtptr;
+  joint_t * jtptr = fibrile_deq.jtptr;
   DEBUG_ASSERT(jtptr != NULL);
 
   lock(&jtptr->lock);
@@ -124,7 +116,7 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
   int count = jtptr->count;
 
   if (count == 0) {
-    DEQ.jtptr = jtptr->parent;
+    fibrile_deq.jtptr = jtptr->parent;
 
     joint_import(jtptr);
     unlock(&jtptr->lock);
@@ -132,7 +124,8 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
     free(jtptr->stptr->top + jtptr->stptr->off);
     free(jtptr);
 
-    DEBUG_DUMP(1, "resume (success):", (frptr, "%p"), (jtptr, "%p"));
+    DEBUG_DUMP(1, "resume (success):", (frptr, "%p"), (jtptr, "%p"),
+        (fibrile_deq.jtptr, "%p"));
     sched_resume(frptr);
   } else {
     jtptr->count = count - 1;

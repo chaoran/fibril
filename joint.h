@@ -5,7 +5,6 @@
 #include <string.h>
 
 #include "safe.h"
-#include "deque.h"
 #include "stack.h"
 #include "fibrile.h"
 
@@ -23,36 +22,17 @@ typedef struct _fibrile_joint_t {
 
 typedef fibrile_data_t data_t;
 
-extern joint_t _joint;
-
-static inline joint_t * joint_create(
-    const fibril_t * frptr, const deque_t * deq)
+static inline joint_t * joint_create()
 {
-  DEBUG_ASSERT(frptr->jtp == NULL);
-  DEBUG_ASSERT(frptr->rsp != NULL);
-  DEBUG_ASSERT(deq->jtptr != NULL);
-
   joint_t * jtptr;
 
   SAFE_NZCALL(jtptr = malloc(sizeof(joint_t)));
   jtptr->lock = 1;
   jtptr->count = 1;
+  jtptr->stptr = &jtptr->stack;
 
-  joint_t * parent = deq->jtptr;
-  jtptr->parent = parent;
-
-  if (parent->stptr->off == STACK_OFFSETS[deq->tid]) {
-    jtptr->stptr = parent->stptr;
-  } else {
-    jtptr->stack.btm = parent->stptr->top;
-    jtptr->stack.off = STACK_OFFSETS[deq->tid];
-    jtptr->stptr = &jtptr->stack;
-  }
-
-  jtptr->stptr->top = frptr->rsp;
   return jtptr;
 }
-
 
 static inline void joint_import(const joint_t * jtptr)
 {

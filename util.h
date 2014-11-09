@@ -1,6 +1,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include "tlmap.h"
 #include "fibrile.h"
 
 /** Atomics. */
@@ -14,20 +15,23 @@
 #define trylock(ptr) (!__sync_lock_test_and_set(ptr, 1))
 
 /** Barrier. */
-static inline void barrier(int n)
+static inline void barrier()
 {
-  static volatile int count = 0;
-  static volatile int sense = 0;
+  extern int _nprocs;
+  static volatile int _count;
+  static volatile int _sense;
+  static __fibril_local__ int local;
 
-  int local_sense = !fibrile_deq.sense;
+  int sense = !local;
+  int n = _nprocs - 1;
 
-  if (fadd(&count, 1) == n - 1) {
-    count = 0;
-    sense = local_sense;
+  if (fadd(&_count, 1) == n) {
+    _count = 0;
+    _sense = sense;
   }
 
-  while (sense != local_sense);
-  fibrile_deq.sense = local_sense;
+  while (_sense != sense);
+  local = sense;
   fence();
 }
 

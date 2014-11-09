@@ -6,122 +6,58 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "tls.h"
-#include "page.h"
 #include "safe.h"
-#include "util.h"
 #include "debug.h"
-#include "deque.h"
-#include "joint.h"
 #include "sched.h"
 #include "stack.h"
 #include "shmap.h"
-#include "fibrili.h"
+#include "tlmap.h"
 
-char __data_start, _end;
-tls_t _tls;
+int _nprocs;
 
-int     _nprocs;
-int  *  _pids;
-
-joint_t _joint;
-
-static int * _tls_files;
-
-static void globe_init(int nprocs)
+static int get_nprocs()
 {
-  shmap_init(nprocs);
+  int nprocs;
+  const char * nprocs_str = getenv("FIBRIL_NPROCS");
 
-  void * dat_start = PAGE_ALIGN_DOWN(&__data_start);
-  void * dat_end   = PAGE_ALIGN_UP(&_end);
-
-  DEBUG_DUMP(2, "data", (dat_start, "%p"), (dat_end, "%p"));
-  DEBUG_ASSERT(PAGE_ALIGNED(dat_start) && PAGE_ALIGNED(dat_end));
-
-  void * tls_start = &_tls;
-  void * tls_end   = tls_start + sizeof(_tls);
-
-  DEBUG_DUMP(2, "tls", (tls_start, "%p"), (tls_end, "%p"));
-  DEBUG_ASSERT(PAGE_ALIGNED(tls_start) && PAGE_ALIGNED(tls_end));
-
-  if (dat_start < tls_start) {
-    shmap_copy(dat_start, tls_start - dat_start, "data");
+  if (nprocs_str) {
+    nprocs = atoi(nprocs_str);
+  } else {
+    nprocs = sysconf(_SC_NPROCESSORS_ONLN);
   }
 
-  if (tls_end < dat_end) {
-    shmap_copy(tls_end, dat_end - tls_end, "data_2");
-  }
+  return nprocs;
 }
 
-static void tls_init(int id)
-{
-  char path[FILENAME_LIMIT];
-  sprintf(path, "tls_%d", id);
-
-  void * addr = &_tls;
-  size_t size = sizeof(_tls);
-
-  _tls_files[id] = shmap_copy(addr, size, path);
-
-  barrier(_nprocs);
-
-  DEQ.deqs = malloc(sizeof(tls_t *) * _nprocs);
-
-  int i;
-  for (i = 0; i < _nprocs; ++i) {
-    if (i != id) {
-      DEQ.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
-    }
-  }
-
-  if (id == 0) {
-    _joint.stack.top = STACK_BOTTOM;
-    _joint.stack.btm = STACK_BOTTOM;
-    _joint.stptr = &_joint.stack;
-
-    DEQ.jtptr = &_joint;
-  }
-}
-
-static int child_main(void * id_)
+static int _main(void * id_)
 {
   int id = (int) (size_t) id_;
 
-  _tid = id;
-  _pid = getpid();
+  tlmap_init_local(id);
+  stack_init_local(id);
 
-  tls_init(id);
-  stack_init_child(id);
-
-  barrier(_nprocs);
-  sched_work(id, _nprocs);
+  if (id) sched_work(id);
   return 0;
 }
 
-int fibril_init(int nprocs)
+__attribute__((constructor)) void init()
 {
-  _tid = 0;
-  _pid = getpid();
-  _nprocs = nprocs;
-  _pids = malloc(sizeof(int) * nprocs);
+  int nprocs = _nprocs = get_nprocs();
+  DEBUG_DUMP(2, "init:", (nprocs, "%d"));
 
-  globe_init(nprocs);
-  stack_init(nprocs);
+  shmap_init();
+  tlmap_init();
+  stack_init();
+  sched_init();
 
-  _tls_files = malloc(sizeof(int) * nprocs);
-
-  /** Create workers. */
   int i;
+  int flags = CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD;
+
   for (i = 1; i < nprocs; ++i) {
-    SAFE_NNCALL(
-        _pids[i] = clone(child_main, STACK_ADDRS[i],
-          CLONE_FS | CLONE_FILES | CLONE_IO | SIGCHLD, (void *) (size_t) i)
-    );
+    void * id = (void *) (intptr_t) i;
+    SAFE_NNCALL(clone(_main, STACK_ADDRS[i], flags, id));
   }
 
-  tls_init(0);
-  barrier(nprocs);
-  free(_tls_files);
-  return 0;
+  _main(NULL);
 }
 

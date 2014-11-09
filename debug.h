@@ -2,8 +2,9 @@
 #define DEBUG_H
 
 #include <stdio.h>
+#include "tlmap.h"
 
-#define DEBUG_TID fibrile_deq.tid
+#define DEBUG_TID TID
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0
@@ -50,8 +51,8 @@
 
 #define DEBUG_DUMP(lv, tag, ...) do { \
   if (lv <= DEBUG_LEVEL) { \
-    fprintf(stderr, "[%d]: " tag DEBUG_FORMAT(__VA_ARGS__) "\n", \
-        DEBUG_TID DEBUG_VARS(__VA_ARGS__) \
+    fprintf(stderr, "[%d]: %s" DEBUG_FORMAT(__VA_ARGS__) "\n", \
+        DEBUG_TID, tag DEBUG_VARS(__VA_ARGS__) \
     ); \
     fflush(stderr); \
   } \

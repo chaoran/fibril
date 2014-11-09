@@ -17,9 +17,11 @@
 
 void *  STACK_ADDR;
 void *  STACK_BOTTOM;
-int  *  STACK_FILES;
 void ** STACK_ADDRS;
 intptr_t * STACK_OFFSETS;
+
+static int  *_files;
+extern int _nprocs;
 
 static void find_stack(void ** addr, size_t * size)
 {
@@ -45,28 +47,28 @@ static void find_stack(void ** addr, size_t * size)
   SAFE_NNCALL(fclose(maps));
 }
 
-void stack_init(int nprocs)
+void stack_init()
 {
+  int nprocs = _nprocs;
+
   size_t size;
   find_stack(&STACK_ADDR, &size);
 
   STACK_BOTTOM = STACK_ADDR + size;
 
-  SAFE_NZCALL(STACK_FILES = malloc(sizeof(int) * nprocs));
+  SAFE_NZCALL(_files = malloc(sizeof(int) * nprocs));
   SAFE_NZCALL(STACK_OFFSETS = malloc(sizeof(intptr_t) * nprocs));
 
   void * stack;
-
   SAFE_NZCALL(stack = malloc(size));
   stack += size;
 
-  STACK_EXECUTE(stack,
-      STACK_FILES[0] = shmap_copy(STACK_ADDR, size, "stack_0")
-  );
+  STACK_EXECUTE(stack, _files[0] = shmap_copy(STACK_ADDR, size, "stack_0"));
 
   free(stack - size);
 
-  STACK_OFFSETS[0] = shmap_mmap(NULL, size, STACK_FILES[0]) - STACK_ADDR;
+  void * addrs[nprocs];
+  addrs[0] = shmap_mmap(NULL, size, _files[0]);
 
   char path[FILENAME_LIMIT];
   int i;
@@ -74,11 +76,13 @@ void stack_init(int nprocs)
   for (i = 1; i < nprocs; ++i) {
     sprintf(path, "%s_%d", "stack", i);
 
-    int file = shmap_open(size, path);
-    STACK_FILES[i] = file;
+    _files[i] = shmap_open(size, path);
+    addrs[i] = shmap_mmap(NULL, size, _files[i]);
+  }
 
-    void * addr = shmap_mmap(NULL, size, file);
-    STACK_OFFSETS[i] = addr - STACK_ADDR;
+  for (i = 0; i < nprocs; ++i) {
+    DEBUG_DUMP(2, "stack_init:", (i, "%d"), (addrs[i], "%p"));
+    STACK_OFFSETS[i] = addrs[i] - STACK_ADDR;
   }
 
   /** Allocate space for scheduler stacks. */
@@ -90,22 +94,28 @@ void stack_init(int nprocs)
   }
 }
 
-void stack_init_child(int id)
+void stack_init_local(int id)
 {
-  DEBUG_ASSERT(id != 0);
-  shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, STACK_FILES[id]);
+  if (id) {
+    shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, _files[id]);
+    barrier();
+  } else {
+    barrier();
+    free(_files);
+  }
 }
 
-void stack_finalize(int nprocs)
+void stack_free()
 {
-  free(STACK_FILES);
-  free(STACK_OFFSETS);
-
   int i;
+  int nprocs = _nprocs;
+  size_t size = STACK_BOTTOM - STACK_ADDR;
+
   for (i = 0; i < nprocs; ++i) {
-    free(STACK_ADDRS[i] - (STACK_BOTTOM - STACK_ADDR));
+    free(STACK_ADDRS[i] - size);
   }
 
   free(STACK_ADDRS);
+  free(STACK_OFFSETS);
 }
 

@@ -5,8 +5,7 @@
 
 typedef struct _fibril_t fibril_t;
 
-extern int fibril_init(int nprocs);
-extern int fibril_exit();
+extern int FIBRIL_NPROCS;
 
 extern inline __attribute__ ((always_inline))
 void fibril_make(fibril_t * frptr)

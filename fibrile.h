@@ -46,34 +46,23 @@ fibrile_save(struct _fibril_t * frptr, void * rip)
   );
 }
 
-#define FIBRILE_PAGE_SIZE (4096ULL)
-#define FIBRILE_TLS_SIZE  (2 * FIBRILE_PAGE_SIZE)
-#define FIBRILE_PTR_SIZE  (sizeof(void *))
-
 struct _fibrile_joint_t;
 
-typedef struct {
-  struct _fibrile_deque_t {
-    int tid;
-    int pid;
-    int lock;
-    int head;
-    int tail;
-    int sense;
-    struct _fibrile_joint_t * jtptr;
-    struct _fibrile_deque_t **  deqs;
-  } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
-  struct _fibril_t * buff[
-    (FIBRILE_TLS_SIZE - sizeof(struct _fibrile_deque_t)) / FIBRILE_PTR_SIZE
-  ];
-} fibrile_tls_t __attribute__((aligned (FIBRILE_PAGE_SIZE)));
+#define FIBRILE_DEQUE_SIZE 1000
 
-extern fibrile_tls_t fibrile_tls;
-#define fibrile_deq (fibrile_tls.deq)
+struct _fibrile_deque_t {
+  int lock;
+  int head;
+  int tail;
+  struct _fibrile_joint_t * jtptr;
+  struct _fibril_t * buff[FIBRILE_DEQUE_SIZE];
+};
+
+extern struct _fibrile_deque_t fibrile_deq;
 
 extern inline void fibrile_push(struct _fibril_t * frptr)
 {
-  fibrile_tls.buff[fibrile_tls.deq.tail++] = frptr;
+  fibrile_deq.buff[fibrile_deq.tail++] = frptr;
 }
 
 #define fibrile_fence() __sync_synchronize()

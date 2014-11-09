@@ -3,22 +3,22 @@
 
 #include "util.h"
 #include "stack.h"
-#include "fibril.h"
-#include "fibrili.h"
+#include "tlmap.h"
+#include "fibrile.h"
 
-__attribute__ ((noreturn))
-void sched_work(int id, int procs);
-void sched_exit();
+void sched_init();
+__attribute__ ((noreturn)) void sched_work(int id);
+void sched_exit(int id);
 
 static inline __attribute__ ((noreturn))
 void sched_restart()
 {
-  int id = fibrile_deq.tid;
-  STACK_EXECUTE(STACK_ADDRS[id], sched_work(id, _nprocs));
+  int id = TID;
+  STACK_EXECUTE(STACK_ADDRS[id], sched_work(id));
 }
 
 static inline __attribute__ ((noreturn))
-void sched_resume(const fibril_t * frptr)
+void sched_resume(const struct _fibril_t * frptr)
 {
   __asm__ (
       "mov\t%0,%%rsp\n\t"
