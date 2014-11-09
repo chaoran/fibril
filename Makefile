@@ -19,7 +19,6 @@ INCS = \
 			 stack.h \
 			 tls.h \
 			 util.h \
-			 vtmem.h \
 
 SRCS = \
 			 exit.c \
