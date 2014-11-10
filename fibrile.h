@@ -57,7 +57,6 @@ typedef struct {
     int lock;
     int head;
     int tail;
-    int sense;
     struct _fibrile_joint_t * jtptr;
     struct _fibrile_deque_t **  deqs;
   } deq;

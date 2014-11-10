@@ -33,7 +33,7 @@ void sched_work(int me, int nprocs)
   unlock(&_done);
 
   if (me) {
-    barrier(_nprocs);
+    barrier();
     exit(0);
   } else {
     joint_t * jtptr = _exit_fr.jtp;
@@ -64,7 +64,7 @@ void sched_exit()
   }
 
 AFTER_EXIT:
-  barrier(_nprocs);
+  barrier();
   return;
 }
 

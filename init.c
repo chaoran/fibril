@@ -58,7 +58,7 @@ static void tls_init(int id)
 
   _tls_files[id] = shmap_copy(addr, size, path);
 
-  barrier(_nprocs);
+  barrier();
 
   DEQ.deqs = malloc(sizeof(tls_t *) * _nprocs);
 
@@ -88,7 +88,7 @@ static int child_main(void * id_)
   tls_init(id);
   stack_init_child(id);
 
-  barrier(_nprocs);
+  barrier();
   sched_work(id, _nprocs);
   return 0;
 }
