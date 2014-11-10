@@ -7,12 +7,11 @@
 #include "debug.h"
 
 void   stack_init(int nprocs);
-void   stack_init_child(int id);
+void   stack_init_local(int id);
 void   stack_finalize(int nprocs);
 
 extern void * STACK_ADDR;
 extern void * STACK_BOTTOM;
-extern int  *  STACK_FILES;
 extern void ** STACK_ADDRS;
 extern intptr_t * STACK_OFFSETS;
 

@@ -3,6 +3,7 @@
 #endif
 
 #include <sched.h>
+#include <limits.h>
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
@@ -13,22 +14,22 @@
 #include "debug.h"
 #include "shmap.h"
 #include "stack.h"
-#include "config.h"
 
 void *  STACK_ADDR;
 void *  STACK_BOTTOM;
-int  *  STACK_FILES;
 void ** STACK_ADDRS;
 intptr_t * STACK_OFFSETS;
 
+static int  *  _stack_files;
+
 static void find_stack(void ** addr, size_t * size)
 {
-  FILE * maps;
-  SAFE_NNCALL(maps = fopen("/proc/self/maps", "r"));
+  FILE * maps = fopen("/proc/self/maps", "r");
+  SAFE_ASSERT(maps != NULL);
 
   void * start;
   void * end;
-  char path[FILENAME_LIMIT];
+  char path[PATH_MAX];
 
   while (EOF != fscanf(maps,
         "%p-%p %*s %*x %*d:%*d %*d %[[/]%s%*[ (deleted)]\n",
@@ -52,33 +53,30 @@ void stack_init(int nprocs)
 
   STACK_BOTTOM = STACK_ADDR + size;
 
-  SAFE_NZCALL(STACK_FILES = malloc(sizeof(int) * nprocs));
-  SAFE_NZCALL(STACK_OFFSETS = malloc(sizeof(intptr_t) * nprocs));
+  SAFE_NZCALL(_stack_files = malloc(sizeof(int) * nprocs));
 
-  void * stack;
+  void * stack = malloc(size);
+  SAFE_ASSERT(stack != NULL);
 
-  SAFE_NZCALL(stack = malloc(size));
   stack += size;
 
   STACK_EXECUTE(stack,
-      STACK_FILES[0] = shmap_copy(STACK_ADDR, size, "stack_0")
+      _stack_files[0] = shmap_copy(STACK_ADDR, size, "stack_0")
   );
 
   free(stack - size);
 
-  STACK_OFFSETS[0] = shmap_mmap(NULL, size, STACK_FILES[0]) - STACK_ADDR;
-
-  char path[FILENAME_LIMIT];
   int i;
+  char name[NAME_MAX];
+
+  SAFE_NZCALL(STACK_OFFSETS = malloc(sizeof(intptr_t) * nprocs));
+  STACK_OFFSETS[0] = shmap_mmap(NULL, size, _stack_files[0]) - STACK_ADDR;
 
   for (i = 1; i < nprocs; ++i) {
-    sprintf(path, "%s_%d", "stack", i);
+    SAFE_NNCALL(snprintf(name, NAME_MAX, "%s_%d", "stack", i));
 
-    int file = shmap_open(size, path);
-    STACK_FILES[i] = file;
-
-    void * addr = shmap_mmap(NULL, size, file);
-    STACK_OFFSETS[i] = addr - STACK_ADDR;
+    _stack_files[i] = shmap_open(size, name);
+    STACK_OFFSETS[i] = shmap_mmap(NULL, size, _stack_files[i]) - STACK_ADDR;
   }
 
   /** Allocate space for scheduler stacks. */
@@ -90,16 +88,20 @@ void stack_init(int nprocs)
   }
 }
 
-void stack_init_child(int id)
+void stack_init_local(int id)
 {
-  if (id != 0) {
-    shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, STACK_FILES[id]);
+  if (id) {
+    shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, _stack_files[id]);
+    barrier();
+  }
+  else {
+    barrier();
+    free(_stack_files);
   }
 }
 
 void stack_finalize(int nprocs)
 {
-  free(STACK_FILES);
   free(STACK_OFFSETS);
 
   int i;

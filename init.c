@@ -41,7 +41,7 @@ static int _main(void * id_)
   int id = (int) (size_t) id_;
 
   tls_init_local(id);
-  stack_init_child(id);
+  stack_init_local(id);
 
   barrier();
 
