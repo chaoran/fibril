@@ -62,20 +62,20 @@ static void create(void * addr, size_t size, int file, off_t off)
 
   if (prev->addr == addr && prev->size == size) {
     /** Replace the previous map. */
-    if (prev->otid == _tid) {
+    if (prev->otid == TID) {
       prev->file.sh = file;
     }
 
     /** Fill thread local map. */
     else if (prev->otid == -1) {
-      prev->file.tl[_tid] = file;
+      prev->file.tl[TID] = file;
     }
 
     /** Make a thread local mapping. */
     else {
       int * files = malloc(sizeof(int [_nprocs]));
       files[prev->otid] = prev->file.sh;
-      files[_tid] = file;
+      files[TID] = file;
 
       prev->file.tl = files;
       prev->otid = -1;
@@ -169,9 +169,9 @@ int shmap_open(size_t size, const char * name)
   char path[FILENAME_LIMIT];
 
   if (name) {
-    sprintf(path, "/%s.%d.%s" , prefix, _pid, name);
+    sprintf(path, "/%s.%d.%s" , prefix, PID, name);
   } else {
-    sprintf(path, "/%s.%d.%ld", prefix, _pid, fadd(&suffix, 1));
+    sprintf(path, "/%s.%d.%ld", prefix, PID, fadd(&suffix, 1));
   }
 
   int file;

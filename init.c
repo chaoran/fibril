@@ -25,6 +25,9 @@ tls_t __fibril_local__ _tls;
 int     _nprocs;
 int  *  _pids;
 
+int __fibril_local__ TID;
+int __fibril_local__ PID;
+
 joint_t _joint;
 
 static int * _tls_files;
@@ -79,8 +82,8 @@ static int child_main(void * id_)
 {
   int id = (int) (size_t) id_;
 
-  _tid = id;
-  _pid = getpid();
+  TID = id;
+  PID = getpid();
 
   tls_init(id);
   stack_init_child(id);
@@ -92,8 +95,8 @@ static int child_main(void * id_)
 
 int fibril_init(int nprocs)
 {
-  _tid = 0;
-  _pid = getpid();
+  TID = 0;
+  PID = getpid();
   _nprocs = nprocs;
   _pids = malloc(sizeof(int) * nprocs);
 

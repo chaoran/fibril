@@ -54,8 +54,6 @@ struct _fibrile_joint_t;
 
 typedef struct {
   struct _fibrile_deque_t {
-    int tid;
-    int pid;
     int lock;
     int head;
     int tail;

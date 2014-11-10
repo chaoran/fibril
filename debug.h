@@ -2,8 +2,9 @@
 #define DEBUG_H
 
 #include <stdio.h>
+#include "tls.h"
 
-#define DEBUG_TID fibrile_deq.tid
+#define DEBUG_TID TID
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0

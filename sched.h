@@ -13,7 +13,7 @@ void sched_exit();
 static inline __attribute__ ((noreturn))
 void sched_restart()
 {
-  int id = fibrile_deq.tid;
+  int id = TID;
   STACK_EXECUTE(STACK_ADDRS[id], sched_work(id, _nprocs));
 }
 

@@ -26,7 +26,7 @@ typedef fibrile_data_t data_t;
 extern joint_t _joint;
 
 static inline joint_t * joint_create(
-    const fibril_t * frptr, const deque_t * deq)
+    const fibril_t * frptr, const deque_t * deq, int tid)
 {
   DEBUG_ASSERT(frptr->jtp == NULL);
   DEBUG_ASSERT(frptr->rsp != NULL);
@@ -41,11 +41,11 @@ static inline joint_t * joint_create(
   joint_t * parent = deq->jtptr;
   jtptr->parent = parent;
 
-  if (parent->stptr->off == STACK_OFFSETS[deq->tid]) {
+  if (parent->stptr->off == STACK_OFFSETS[tid]) {
     jtptr->stptr = parent->stptr;
   } else {
     jtptr->stack.btm = parent->stptr->top;
-    jtptr->stack.off = STACK_OFFSETS[deq->tid];
+    jtptr->stack.off = STACK_OFFSETS[tid];
     jtptr->stptr = &jtptr->stack;
   }
 

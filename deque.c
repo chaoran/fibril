@@ -51,7 +51,7 @@ int fibrile_pop()
   return 1;
 }
 
-fibril_t * deque_steal(deque_t * deq)
+fibril_t * deque_steal(deque_t * deq, int tid)
 {
   lock(&deq->lock);
 
@@ -68,9 +68,9 @@ fibril_t * deque_steal(deque_t * deq)
 
   fibril_t * frptr = ((tls_t *) deq)->buff[H];
   DEBUG_ASSERT(frptr != NULL);
-  DEBUG_DUMP(1, "steal:", (deq->tid, "%d"), (frptr, "%p"), (H, "%d"));
+  DEBUG_DUMP(1, "steal:", (tid, "%d"), (frptr, "%p"), (H, "%d"));
 
-  frptr = (void *) frptr + STACK_OFFSETS[deq->tid];
+  frptr = (void *) frptr + STACK_OFFSETS[tid];
 
   joint_t * jtptr = frptr->jtp;
 
@@ -78,7 +78,7 @@ fibril_t * deque_steal(deque_t * deq)
     lock(&jtptr->lock);
     jtptr->count++;
   } else {
-    jtptr = joint_create(frptr, deq);
+    jtptr = joint_create(frptr, deq, tid);
     frptr->jtp = jtptr;
     deq->jtptr = jtptr;
   }

@@ -16,7 +16,7 @@ void sched_work(int me, int nprocs)
 
     if (victim == me) continue;
 
-    fibril_t * frptr = deque_steal(DEQ.deqs[victim]);
+    fibril_t * frptr = deque_steal(DEQ.deqs[victim], victim);
 
     if (frptr == NULL) continue;
 
@@ -24,7 +24,7 @@ void sched_work(int me, int nprocs)
 
     joint_import(jtptr);
     DEQ.jtptr = jtptr;
-    jtptr->stptr->off = STACK_OFFSETS[_tid];
+    jtptr->stptr->off = STACK_OFFSETS[TID];
 
     unlock(&jtptr->lock);
     sched_resume(frptr);
@@ -49,7 +49,7 @@ void sched_work(int me, int nprocs)
 
 void sched_exit()
 {
-  if (_tid == 0) {
+  if (TID == 0) {
     unlock(&_done);
   } else {
     fibril_make(&_exit_fr);
