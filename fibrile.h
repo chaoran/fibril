@@ -62,11 +62,9 @@ typedef struct {
     int sense;
     struct _fibrile_joint_t * jtptr;
     struct _fibrile_deque_t **  deqs;
-  } deq __attribute__ ((aligned (FIBRILE_PTR_SIZE)));
-  struct _fibril_t * buff[
-    (FIBRILE_TLS_SIZE - sizeof(struct _fibrile_deque_t)) / FIBRILE_PTR_SIZE
-  ];
-} fibrile_tls_t __attribute__((aligned (FIBRILE_PAGE_SIZE)));
+  } deq;
+  struct _fibril_t * buff[1000];
+} fibrile_tls_t;
 
 extern fibrile_tls_t fibrile_tls;
 #define fibrile_deq (fibrile_tls.deq)

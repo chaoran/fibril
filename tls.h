@@ -3,6 +3,8 @@
 
 #include "fibrile.h"
 
+#define __fibril_local__ __attribute__((section(".fibril_tls")))
+
 #define tls_t fibrile_tls_t
 #define _tls  fibrile_tls
 

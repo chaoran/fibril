@@ -19,7 +19,8 @@
 #include "fibrili.h"
 
 char __data_start, _end;
-tls_t _tls;
+char _fibril_tls_start, _fibril_tls_end;
+tls_t __fibril_local__ _tls;
 
 int     _nprocs;
 int  *  _pids;
@@ -38,19 +39,7 @@ static void globe_init(int nprocs)
   DEBUG_DUMP(2, "data", (dat_start, "%p"), (dat_end, "%p"));
   DEBUG_ASSERT(PAGE_ALIGNED(dat_start) && PAGE_ALIGNED(dat_end));
 
-  void * tls_start = &_tls;
-  void * tls_end   = tls_start + sizeof(_tls);
-
-  DEBUG_DUMP(2, "tls", (tls_start, "%p"), (tls_end, "%p"));
-  DEBUG_ASSERT(PAGE_ALIGNED(tls_start) && PAGE_ALIGNED(tls_end));
-
-  if (dat_start < tls_start) {
-    shmap_copy(dat_start, tls_start - dat_start, "data");
-  }
-
-  if (tls_end < dat_end) {
-    shmap_copy(tls_end, dat_end - tls_end, "data_2");
-  }
+  shmap_copy(dat_start, dat_end - dat_start, "data");
 }
 
 static void tls_init(int id)
@@ -58,8 +47,11 @@ static void tls_init(int id)
   char path[FILENAME_LIMIT];
   sprintf(path, "tls_%d", id);
 
-  void * addr = &_tls;
-  size_t size = sizeof(_tls);
+  void * addr = &_fibril_tls_start;
+  size_t size = (void *) &_fibril_tls_end - addr;
+
+  DEBUG_ASSERT(PAGE_ALIGNED(addr));
+  DEBUG_ASSERT(PAGE_DIVISIBLE(size));
 
   _tls_files[id] = shmap_copy(addr, size, path);
 

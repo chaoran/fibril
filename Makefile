@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -g -Wall -DENABLE_SAFE
+LDFLAGS = -Wl,-T -Wl,fibril.ld
 LDLIBS = -lrt -lstdc++ -lm -ldl
 
 EXEC = fib
