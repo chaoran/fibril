@@ -6,8 +6,9 @@
 #include "fibril.h"
 #include "fibrili.h"
 
+void sched_init(int nprocs);
 __attribute__ ((noreturn))
-void sched_work(int id, int procs);
+void sched_work(int id, int nprocs);
 void sched_exit();
 
 static inline __attribute__ ((noreturn))

@@ -92,8 +92,9 @@ void stack_init(int nprocs)
 
 void stack_init_child(int id)
 {
-  DEBUG_ASSERT(id != 0);
-  shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, STACK_FILES[id]);
+  if (id != 0) {
+    shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, STACK_FILES[id]);
+  }
 }
 
 void stack_finalize(int nprocs)

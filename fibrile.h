@@ -57,7 +57,6 @@ struct _fibrile_deque_t {
   int head;
   int tail;
   struct _fibrile_joint_t * jtptr;
-  struct _fibrile_deque_t **  deqs;
   void * buff[1000];
 } fibrile_deq;
 
