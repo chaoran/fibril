@@ -52,23 +52,18 @@ fibrile_save(struct _fibril_t * frptr, void * rip)
 
 struct _fibrile_joint_t;
 
-typedef struct {
-  struct _fibrile_deque_t {
-    int lock;
-    int head;
-    int tail;
-    struct _fibrile_joint_t * jtptr;
-    struct _fibrile_deque_t **  deqs;
-  } deq;
-  struct _fibril_t * buff[1000];
-} fibrile_tls_t;
-
-extern fibrile_tls_t fibrile_tls;
-#define fibrile_deq (fibrile_tls.deq)
+struct _fibrile_deque_t {
+  int lock;
+  int head;
+  int tail;
+  struct _fibrile_joint_t * jtptr;
+  struct _fibrile_deque_t **  deqs;
+  void * buff[1000];
+} fibrile_deq;
 
 extern inline void fibrile_push(struct _fibril_t * frptr)
 {
-  fibrile_tls.buff[fibrile_tls.deq.tail++] = frptr;
+  fibrile_deq.buff[fibrile_deq.tail++] = frptr;
 }
 
 #define fibrile_fence() __sync_synchronize()

@@ -16,14 +16,14 @@ void sched_work(int me, int nprocs)
 
     if (victim == me) continue;
 
-    fibril_t * frptr = deque_steal(DEQ.deqs[victim], victim);
+    fibril_t * frptr = deque_steal(fibrile_deq.deqs[victim], victim);
 
     if (frptr == NULL) continue;
 
     joint_t * jtptr = frptr->jtp;
 
     joint_import(jtptr);
-    DEQ.jtptr = jtptr;
+    fibrile_deq.jtptr = jtptr;
     jtptr->stptr->off = STACK_OFFSETS[TID];
 
     unlock(&jtptr->lock);

@@ -82,7 +82,7 @@ int fibrile_join(const fibril_t * frptr)
   int success = (count == 0);
 
   if (success) {
-    DEQ.jtptr = jtptr->parent;
+    fibrile_deq.jtptr = jtptr->parent;
     unlock(&jtptr->lock);
     free(jtptr);
 
@@ -114,7 +114,7 @@ void fibrile_yield(const fibril_t * frptr)
 
 void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 {
-  joint_t * jtptr = DEQ.jtptr;
+  joint_t * jtptr = fibrile_deq.jtptr;
   DEBUG_ASSERT(jtptr != NULL);
 
   lock(&jtptr->lock);
@@ -124,7 +124,7 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
   int count = jtptr->count;
 
   if (count == 0) {
-    DEQ.jtptr = jtptr->parent;
+    fibrile_deq.jtptr = jtptr->parent;
 
     joint_import(jtptr);
     unlock(&jtptr->lock);

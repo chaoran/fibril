@@ -20,7 +20,6 @@
 
 char __data_start, _end;
 char _fibril_tls_start, _fibril_tls_end;
-tls_t __fibril_local__ _tls;
 
 int     _nprocs;
 int  *  _pids;
@@ -60,12 +59,12 @@ static void tls_init(int id)
 
   barrier();
 
-  DEQ.deqs = malloc(sizeof(tls_t *) * _nprocs);
+  fibrile_deq.deqs = malloc(sizeof(deque_t *) * _nprocs);
 
   int i;
   for (i = 0; i < _nprocs; ++i) {
     if (i != id) {
-      DEQ.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
+      fibrile_deq.deqs[i] = shmap_mmap(NULL, size, _tls_files[i]);
     }
   }
 
@@ -74,7 +73,7 @@ static void tls_init(int id)
     _joint.stack.btm = STACK_BOTTOM;
     _joint.stptr = &_joint.stack;
 
-    DEQ.jtptr = &_joint;
+    fibrile_deq.jtptr = &_joint;
   }
 }
 

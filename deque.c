@@ -5,46 +5,48 @@
 #include "joint.h"
 #include "stack.h"
 
+deque_t __fibril_local__ fibrile_deq;
+
 void fibrile_push(fibril_t * frptr)
 {
-  int T = DEQ.tail;
+  int T = fibrile_deq.tail;
 
-  _tls.buff[T] = frptr;
-  DEQ.tail = T + 1;
+  fibrile_deq.buff[T] = frptr;
+  fibrile_deq.tail = T + 1;
 
   DEBUG_DUMP(3, "push:", (frptr, "%p"), (T, "%d"));
 }
 
 int fibrile_pop()
 {
-  int T = DEQ.tail;
+  int T = fibrile_deq.tail;
 
   if (T == 0) return 0;
 
-  DEQ.tail = --T;
+  fibrile_deq.tail = --T;
 
   fence();
-  int H = DEQ.head;
+  int H = fibrile_deq.head;
 
   if (H > T) {
-    DEQ.tail = T + 1;
+    fibrile_deq.tail = T + 1;
 
-    lock(&DEQ.lock);
-    H = DEQ.head;
+    lock(&fibrile_deq.lock);
+    H = fibrile_deq.head;
 
     if (H > T) {
-      DEQ.head = 0;
-      DEQ.tail = 0;
+      fibrile_deq.head = 0;
+      fibrile_deq.tail = 0;
 
-      unlock(&DEQ.lock);
+      unlock(&fibrile_deq.lock);
       return 0;
     }
 
-    DEQ.tail = T;
-    unlock(&DEQ.lock);
+    fibrile_deq.tail = T;
+    unlock(&fibrile_deq.lock);
   }
 
-  void * frptr = _tls.buff[T];
+  void * frptr = fibrile_deq.buff[T];
 
   DEBUG_DUMP(3, "pop:", (frptr, "%p"), (T, "%d"));
   DEBUG_ASSERT(frptr != NULL);
@@ -66,7 +68,7 @@ fibril_t * deque_steal(deque_t * deq, int tid)
     return NULL;
   }
 
-  fibril_t * frptr = ((tls_t *) deq)->buff[H];
+  fibril_t * frptr = deq->buff[H];
   DEBUG_ASSERT(frptr != NULL);
   DEBUG_DUMP(1, "steal:", (tid, "%d"), (frptr, "%p"), (H, "%d"));
 
