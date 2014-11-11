@@ -5,10 +5,10 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
-#include "tls.h"
 #include "safe.h"
 #include "util.h"
 #include "debug.h"
+#include "tlmap.h"
 #include "config.h"
 #include "fibrili.h"
 

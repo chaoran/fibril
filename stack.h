@@ -7,20 +7,13 @@
 #include "debug.h"
 
 void   stack_init(int nprocs);
-void   stack_init_local(int id);
+void   stack_init_local(int id, int nprocs);
 void   stack_finalize(int nprocs);
 
-extern void * STACK_ADDR;
 extern void * STACK_BOTTOM;
+extern size_t STACK_SIZE;
 extern void ** STACK_ADDRS;
-extern intptr_t * STACK_OFFSETS;
-
-static inline
-void * stack_shptr(void * ptr, int id)
-{
-  DEBUG_ASSERT(ptr >= STACK_ADDR && ptr <= STACK_BOTTOM);
-  return ptr + STACK_OFFSETS[id];
-}
+extern ptrdiff_t * STACK_OFFSETS;
 
 #define STACK_EXECUTE(stack, fcall) do { \
   __asm__ ( "mov\t%0,%%r15\n\txchg\t%%r15,%%rsp" : : "g" (stack) : "r15"); \

@@ -1,9 +1,9 @@
-#include "tls.h"
 #include "util.h"
 #include "debug.h"
 #include "deque.h"
 #include "joint.h"
 #include "stack.h"
+#include "tlmap.h"
 
 deque_t __fibril_local__ fibrile_deq;
 

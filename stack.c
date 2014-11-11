@@ -1,26 +1,15 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
-#include <sched.h>
+#include <stdio.h>
 #include <limits.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/wait.h>
-#include <sys/syscall.h>
-
 #include "safe.h"
 #include "util.h"
-#include "debug.h"
 #include "shmap.h"
 #include "stack.h"
+#include "tlmap.h"
 
-void *  STACK_ADDR;
-void *  STACK_BOTTOM;
+void * STACK_BOTTOM;
+size_t STACK_SIZE;
 void ** STACK_ADDRS;
-intptr_t * STACK_OFFSETS;
-
-static int  *  _stack_files;
+ptrdiff_t * STACK_OFFSETS;
 
 static void find_stack(void ** addr, size_t * size)
 {
@@ -38,7 +27,6 @@ static void find_stack(void ** addr, size_t * size)
       *addr = start;
       *size = end - start;
 
-      DEBUG_DUMP(2, "stack:", (start, "%p"), (end, "%p"));
       break;
     }
   }
@@ -48,56 +36,30 @@ static void find_stack(void ** addr, size_t * size)
 
 void stack_init(int nprocs)
 {
+  void * addr;
   size_t size;
-  find_stack(&STACK_ADDR, &size);
+  find_stack(&addr, &size);
 
-  STACK_BOTTOM = STACK_ADDR + size;
+  DEBUG_DUMP(2, "stack_init:", (addr, "%p"), (size, "%ld"));
 
-  SAFE_NZCALL(_stack_files = malloc(sizeof(int) * nprocs));
+  STACK_SIZE = size;
+  STACK_BOTTOM = addr + size;
 
-  void * stack = malloc(size);
-  SAFE_ASSERT(stack != NULL);
-
-  stack += size;
-
-  STACK_EXECUTE(stack,
-      _stack_files[0] = shmap_copy(STACK_ADDR, size, "stack_0")
-  );
-
-  free(stack - size);
-
-  int i;
-  char name[NAME_MAX];
-
-  SAFE_NZCALL(STACK_OFFSETS = malloc(sizeof(intptr_t) * nprocs));
-  STACK_OFFSETS[0] = shmap_mmap(NULL, size, _stack_files[0]) - STACK_ADDR;
-
-  for (i = 1; i < nprocs; ++i) {
-    SAFE_NNCALL(snprintf(name, NAME_MAX, "%s_%d", "stack", i));
-
-    _stack_files[i] = shmap_open(size, name);
-    STACK_OFFSETS[i] = shmap_mmap(NULL, size, _stack_files[i]) - STACK_ADDR;
-  }
+  STACK_OFFSETS = tlmap_setup(addr, size, "stack", nprocs);
 
   /** Allocate space for scheduler stacks. */
   SAFE_NZCALL(STACK_ADDRS = malloc(sizeof(void * [nprocs])));
 
+  int i;
   for (i = 0; i < nprocs; ++i) {
     SAFE_NZCALL(STACK_ADDRS[i] = malloc(size));
     STACK_ADDRS[i] += size;
   }
 }
 
-void stack_init_local(int id)
+void stack_init_local(int id, int nprocs)
 {
-  if (id) {
-    shmap_mmap(STACK_ADDR, STACK_BOTTOM - STACK_ADDR, _stack_files[id]);
-    barrier();
-  }
-  else {
-    barrier();
-    free(_stack_files);
-  }
+  tlmap_setup_local(STACK_OFFSETS, id, nprocs);
 }
 
 void stack_finalize(int nprocs)
@@ -106,7 +68,7 @@ void stack_finalize(int nprocs)
 
   int i;
   for (i = 0; i < nprocs; ++i) {
-    free(STACK_ADDRS[i] - (STACK_BOTTOM - STACK_ADDR));
+    free(STACK_ADDRS[i] - STACK_SIZE);
   }
 
   free(STACK_ADDRS);

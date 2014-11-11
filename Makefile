@@ -18,7 +18,7 @@ INCS = \
 			 sched.h \
 			 shmap.h \
 			 stack.h \
-			 tls.h \
+			 tlmap.h \
 			 util.h \
 
 SRCS = \
@@ -30,7 +30,7 @@ SRCS = \
 			 sched.c \
 			 shmap.c \
 			 stack.c \
-			 tls.c \
+			 tlmap.c \
 
 HOARD_DIR = Hoard/src
 HOARD_OBJS = $(addprefix $(HOARD_DIR)/, libhoard.o unixtls.o gnuwrapper.o)

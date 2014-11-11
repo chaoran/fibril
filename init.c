@@ -6,7 +6,6 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "tls.h"
 #include "page.h"
 #include "safe.h"
 #include "util.h"
@@ -16,6 +15,7 @@
 #include "sched.h"
 #include "stack.h"
 #include "shmap.h"
+#include "tlmap.h"
 #include "fibrili.h"
 
 char __data_start, _end;
@@ -40,8 +40,8 @@ static int _main(void * id_)
 {
   int id = (int) (size_t) id_;
 
-  tls_init_local(id);
-  stack_init_local(id);
+  tlmap_init_local(id, _nprocs);
+  stack_init_local(id, _nprocs);
 
   barrier();
 
@@ -55,7 +55,7 @@ int fibril_init(int nprocs)
   _pids = malloc(sizeof(int) * nprocs);
 
   globe_init(nprocs);
-  tls_init(nprocs);
+  tlmap_init(nprocs);
   stack_init(nprocs);
   sched_init(nprocs);
 

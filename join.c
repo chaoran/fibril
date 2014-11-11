@@ -1,12 +1,12 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "tls.h"
 #include "safe.h"
 #include "util.h"
 #include "sched.h"
 #include "joint.h"
 #include "stack.h"
+#include "tlmap.h"
 
 static int commit(void * top, void * btm, intptr_t off,
     const data_t * data, size_t n)

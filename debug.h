@@ -2,7 +2,7 @@
 #define DEBUG_H
 
 #include <stdio.h>
-#include "tls.h"
+#include "tlmap.h"
 
 #define DEBUG_TID TID
 
