@@ -3,15 +3,14 @@
 #include "deque.h"
 #include "joint.h"
 #include "sched.h"
+#include "shmap.h"
 #include "tlmap.h"
-#include "fibrili.h"
-
-static int _done = 1;
-static fibril_t _exit_fr;
 
 static deque_t ** _deqs;
+static int __fibril_shared__ _done;
+static fibril_t __fibril_shared__ _exit_fr;
 
-joint_t _joint;
+joint_t __fibril_shared__ _joint;
 
 void sched_init(int nprocs)
 {
@@ -30,6 +29,8 @@ void sched_init(int nprocs)
   _joint.stptr = &_joint.stack;
 
   fibrile_deq.jtptr = &_joint;
+
+  lock(&_done);
 }
 
 void sched_work(int me, int nprocs)

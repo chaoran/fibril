@@ -6,35 +6,15 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "page.h"
 #include "safe.h"
 #include "util.h"
-#include "debug.h"
-#include "deque.h"
-#include "joint.h"
 #include "sched.h"
 #include "stack.h"
 #include "shmap.h"
 #include "tlmap.h"
-#include "fibrili.h"
 
-char __data_start, _end;
-
-int     _nprocs;
-int  *  _pids;
-
-static void globe_init(int nprocs)
-{
-  shmap_init(nprocs);
-
-  void * dat_start = PAGE_ALIGN_DOWN(&__data_start);
-  void * dat_end   = PAGE_ALIGN_UP(&_end);
-
-  DEBUG_DUMP(2, "data", (dat_start, "%p"), (dat_end, "%p"));
-  DEBUG_ASSERT(PAGE_ALIGNED(dat_start) && PAGE_ALIGNED(dat_end));
-
-  shmap_copy(dat_start, dat_end - dat_start, "data");
-}
+int   _nprocs;
+int * __fibril_shared__ _pids;
 
 static int _main(void * id_)
 {
@@ -54,7 +34,7 @@ int fibril_init(int nprocs)
   _nprocs = nprocs;
   _pids = malloc(sizeof(int) * nprocs);
 
-  globe_init(nprocs);
+  shmap_init(nprocs);
   tlmap_init(nprocs);
   stack_init(nprocs);
   sched_init(nprocs);

@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include "tlmap.h"
+#include "shmap.h"
 #include "fibrile.h"
 
 /** Atomics. */
@@ -18,8 +19,8 @@
 static inline void barrier()
 {
   extern int _nprocs;
-  static volatile int _count;
-  static volatile int _sense;
+  static volatile int __fibril_shared__ _count;
+  static volatile int __fibril_shared__ _sense;
   static volatile int __fibril_local__ _local_sense;
 
   int sense = !_local_sense;

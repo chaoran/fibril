@@ -5,9 +5,9 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include "page.h"
 #include "safe.h"
 #include "util.h"
-#include "debug.h"
 #include "tlmap.h"
 #include "config.h"
 #include "fibrili.h"
@@ -24,6 +24,9 @@ typedef struct _shmap_t {
   int    otid;
   int    lock;
 } shmap_t __attribute ((aligned (sizeof(void *))));
+
+char __data_start, _end;
+char _fibril_shm_start, _fibril_shm_end;
 
 static struct sigaction _default_sa;
 
@@ -150,17 +153,6 @@ static void segfault_sa(int signum, siginfo_t * info, void * ctxt)
   }
 }
 
-void shmap_init(int nprocs)
-{
-  /** Setup SIGSEGV signal handler. */
-  struct sigaction sa;
-  sa.sa_sigaction = segfault_sa;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_SIGINFO;
-
-  sigaction(SIGSEGV, &sa, &_default_sa);
-}
-
 int shmap_open(size_t size, const char * name)
 {
   static size_t suffix = 0;
@@ -202,6 +194,33 @@ int shmap_copy(void * addr, size_t size, const char * name)
   shmap_mmap(addr, size, shm);
 
   return shm;
+}
+
+void shmap_init(int nprocs)
+{
+  void * addr = PAGE_ALIGN_DOWN(&__data_start);
+  size_t size = PAGE_ALIGN_UP(&_end) - addr;
+
+  DEBUG_DUMP(2, "shmap_init (app):", (addr, "%p"), (size, "%ld"));
+  DEBUG_ASSERT(PAGE_ALIGNED(addr) && PAGE_DIVISIBLE(size));
+
+  shmap_copy(addr, size, "data");
+
+  addr = &_fibril_shm_start;
+  size = (void *) &_fibril_shm_end - addr;
+
+  DEBUG_DUMP(2, "shmap_init (lib):", (addr, "%p"), (size, "%ld"));
+  DEBUG_ASSERT(PAGE_ALIGNED(addr) && PAGE_DIVISIBLE(size) && size > 0);
+
+  shmap_copy(addr, size, "shared");
+
+  /** Setup SIGSEGV signal handler. */
+  struct sigaction sa;
+  sa.sa_sigaction = segfault_sa;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = SA_SIGINFO;
+
+  sigaction(SIGSEGV, &sa, &_default_sa);
 }
 
 /**
