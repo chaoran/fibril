@@ -46,10 +46,6 @@ fibrile_save(struct _fibril_t * frptr, void * rip)
   );
 }
 
-#define FIBRILE_PAGE_SIZE (4096ULL)
-#define FIBRILE_TLS_SIZE  (2 * FIBRILE_PAGE_SIZE)
-#define FIBRILE_PTR_SIZE  (sizeof(void *))
-
 struct _fibrile_joint_t;
 
 struct _fibrile_deque_t {
