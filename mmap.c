@@ -3,6 +3,7 @@
 #include <sys/syscall.h>
 #include "page.h"
 #include "safe.h"
+#include "util.h"
 #include "shmap.h"
 #include "tlmap.h"
 #include "config.h"
@@ -61,14 +62,21 @@ __attribute__((constructor)) void mmap_init(int nprocs)
 
 void mmap_init_local(int id, int nprocs)
 {
-  size_t size = (_base.size / nprocs) & ~PAGE_SIZE_MASK;
-  void * addr = _base.addr + (nprocs - id - 1) * size;
+  bin_t * pbase = (void *) &_base + TLS_OFFSETS[0];
 
-  _base.addr = addr;
-  _base.size = size;
+  size_t size = (pbase->size / nprocs) & ~PAGE_SIZE_MASK;
+  void * addr = pbase->addr + (nprocs - id - 1) * size;
 
-  /** Tell child processes to use the new base. */
-  if (id) _head = &_base;
+  if (id) {
+    _base.addr = addr;
+    _base.size = size;
+    _head = &_base;
+    barrier();
+  } else {
+    barrier();
+    _base.addr = addr;
+    _base.size = size;
+  }
 
   DEBUG_DUMP(2, "mmap_init_local:", (_base.addr, "%p"), (_base.size, "%lu"));
 }

@@ -21,8 +21,8 @@ static int _main(void * id_)
 {
   int id = (int) (size_t) id_;
 
-  mmap_init_local(id, _nprocs);
   tlmap_init_local(id, _nprocs);
+  mmap_init_local(id, _nprocs);
   stack_init_local(id, _nprocs);
 
   barrier();
