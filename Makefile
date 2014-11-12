@@ -12,6 +12,7 @@ INCS = \
 			 fibril.h \
 			 fibrile.h \
 			 fibrili.h \
+			 mmap.h \
 			 joint.h \
 			 page.h \
 			 safe.h \
@@ -26,6 +27,7 @@ SRCS = \
 			 deque.c \
 			 fib.c \
 			 init.c \
+			 mmap.c \
 			 join.c \
 			 sched.c \
 			 shmap.c \

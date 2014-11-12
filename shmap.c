@@ -45,7 +45,7 @@ static shmap_t * find(shmap_t * head, void * addr)
   return map;
 }
 
-static void create(void * addr, size_t size, int file, off_t off)
+void shmap_create(void * addr, size_t size, int file, off_t off)
 {
   static shmap_t maps[N_SHMAP_ENTRIES];
   static size_t next = 0;
@@ -125,9 +125,7 @@ static void * shmap(void * addr, size_t size, int file, off_t off)
     flag |= MAP_FIXED;
   }
 
-  SAFE_NNCALL(
-      addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off)
-  );
+  addr = mmap(addr, size, prot, flag, file, off);
 
   DEBUG_DUMP(3, "shmap:", (file, "%d"), (addr, "%p"),
       (size, "%ld"), (off, "%ld"));
@@ -178,7 +176,7 @@ int shmap_open(size_t size, const char * name)
 void * shmap_mmap(void * addr, size_t size, int file)
 {
   addr = shmap(addr, size, file, 0);
-  create(addr, size, file, 0);
+  shmap_create(addr, size, file, 0);
 
   return addr;
 }
@@ -223,72 +221,4 @@ void shmap_init(int nprocs)
   sigaction(SIGSEGV, &sa, &_default_sa);
 }
 
-/**
- * Overwrite mmap calls.
- */
-void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
-{
-  if (!(prot & PROT_WRITE) || !(flag & MAP_PRIVATE)) {
-    return (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
-  }
-
-  /** Change private to shared. */
-  flag ^= MAP_PRIVATE;
-  flag |= MAP_SHARED;
-
-  if (!(flag & MAP_ANONYMOUS)) {
-    DEBUG_ASSERT(file != -1);
-    addr = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
-    if (addr != MAP_FAILED) create(addr, size, file, off);
-    return addr;
-  }
-
-  /** Change anonymous to file-backed. */
-  DEBUG_ASSERT(file == -1);
-  flag ^= MAP_ANONYMOUS;
-
-  file = shmap_open(size, NULL);
-  void * ret = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
-  if (ret == MAP_FAILED) return ret;
-
-  addr = ret;
-  DEBUG_DUMP(3, "mmap:", (file, "%d"), (addr, "%p"), (size, "%ld"));
-
-  /** Avoid new mapping overwrite old ones. */
-  const shmap_t * map = find(NULL, addr);
-
-  if (map->addr <= addr && map->addr + map->size > addr) {
-    size_t sz = map->addr + map->size - addr;
-    if (sz > size) sz = size;
-
-    shmap(addr, sz, map->file.sh, addr - map->addr);
-    addr += sz;
-    size -= sz;
-    off  += sz;
-  }
-
-  const shmap_t * next;
-
-  while ((next = map->next) && next->addr < addr + size) {
-    size_t sz;
-
-    if ((sz = next->addr - addr) > 0) {
-      create(addr, sz, file, off);
-      addr += sz;
-      size -= sz;
-      off  += sz;
-    }
-
-    sz = size < next->size ? size : next->size;
-    shmap(addr, sz, next->file.sh, 0);
-    addr += sz;
-    size -= sz;
-    off  += sz;
-
-    map = next;
-  }
-
-  if (size > 0) create(addr, size, file, off);
-  return ret;
-}
 
