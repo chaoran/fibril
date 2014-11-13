@@ -26,6 +26,7 @@ void sched_init(int nprocs)
   /** Setup initial joint. */
   _joint.stack.top = STACK_BOTTOM;
   _joint.stack.btm = STACK_BOTTOM;
+  _joint.stack.off = STACK_OFFSETS[0];
   _joint.stptr = &_joint.stack;
 
   fibrile_deq.jtptr = &_joint;
@@ -46,10 +47,13 @@ void sched_work(int me, int nprocs)
 
     joint_t * jtptr = frptr->jtp;
 
-    joint_import(jtptr);
-    fibrile_deq.jtptr = jtptr;
-    jtptr->stptr->off = STACK_OFFSETS[TID];
+    void * dest = jtptr->stptr->top;
+    void * addr = dest + STACK_OFFSETS[victim];
+    size_t size = STACK_BOTTOM - dest;
 
+    memcpy(dest, addr, size);
+
+    fibrile_deq.jtptr = jtptr;
     unlock(&jtptr->lock);
     sched_resume(frptr);
   }

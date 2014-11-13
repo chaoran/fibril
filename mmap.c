@@ -197,6 +197,7 @@ void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
   }
 
   shmap_create(addr, size, file, off);
+  DEBUG_DUMP(3, "mmap:", (addr, "%p"), (size, "%lu"), (file, "%d"));
   return (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
 }
 

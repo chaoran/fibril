@@ -45,11 +45,14 @@ static inline joint_t * joint_create(
     jtptr->stptr = parent->stptr;
   } else {
     jtptr->stack.btm = parent->stptr->top;
-    jtptr->stack.off = STACK_OFFSETS[tid];
     jtptr->stptr = &jtptr->stack;
   }
 
   jtptr->stptr->top = frptr->rsp;
+  jtptr->stptr->off = STACK_OFFSETS[TID];
+
+  DEBUG_DUMP(3, "create:", (jtptr, "%p"), (parent, "%p"),
+      (jtptr->stptr->top, "%p"), (jtptr->stptr->btm, "%p"));
   return jtptr;
 }
 
@@ -62,10 +65,8 @@ static inline void joint_import(const joint_t * jtptr)
 
   memcpy(dest, addr, size);
 
-  DEBUG_DUMP(3, "import:", (jtptr, "%p"),
-      (jtptr->stptr->top, "%p"),
-      (jtptr->stptr->btm, "%p"),
-      (jtptr->stptr->off, "%ld"));
+  DEBUG_DUMP(3, "import:", (jtptr, "%p"), (dest, "%p"),
+      (size, "%lu"), (addr, "%p"));
 }
 
 static inline void joint_export(const joint_t * jtptr)
@@ -77,9 +78,7 @@ static inline void joint_export(const joint_t * jtptr)
   memcpy(dest, addr, size);
 
   DEBUG_DUMP(3, "export:", (jtptr, "%p"),
-      (jtptr->stptr->top, "%p"),
-      (jtptr->stptr->btm, "%p"),
-      (jtptr->stptr->off, "%ld"));
+      (addr, "%p"), (size, "%lu"), (dest, "%p"));
 }
 
 #endif /* end of include guard: JOINT_H */
