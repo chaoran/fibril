@@ -16,7 +16,7 @@ typedef struct _fibrile_joint_t {
   struct _stack_t {
     void * top;
     void * btm;
-    intptr_t off;
+    ptrdiff_t off;
   } stack;
   struct _stack_t * stptr;
 } joint_t;
@@ -56,17 +56,16 @@ static inline joint_t * joint_create(
   return jtptr;
 }
 
-
 static inline void joint_import(const joint_t * jtptr)
 {
   void * dest = jtptr->stptr->top;
   void * addr = jtptr->stptr->top + jtptr->stptr->off;
   size_t size = jtptr->stptr->btm - dest;
 
-  memcpy(dest, addr, size);
-
   DEBUG_DUMP(3, "import:", (jtptr, "%p"), (dest, "%p"),
       (size, "%lu"), (addr, "%p"));
+
+  memcpy(dest, addr, size);
 }
 
 static inline void joint_export(const joint_t * jtptr)
@@ -75,10 +74,10 @@ static inline void joint_export(const joint_t * jtptr)
   size_t size = jtptr->stptr->btm - jtptr->stptr->top;
   void * dest = addr + jtptr->stptr->off;
 
-  memcpy(dest, addr, size);
-
   DEBUG_DUMP(3, "export:", (jtptr, "%p"),
       (addr, "%p"), (size, "%lu"), (dest, "%p"));
+
+  memcpy(dest, addr, size);
 }
 
 #endif /* end of include guard: JOINT_H */
