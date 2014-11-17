@@ -97,9 +97,13 @@ void tlmap_init(int nprocs)
   }
 }
 
+extern void mmap_init_local(int, int);
+
 void tlmap_init_local(int id, int nprocs)
 {
   tlmap_setup_local(TLS_OFFSETS, id, nprocs);
   if (id != 0) PID = getpid();
+
+  mmap_init_local(id, nprocs);
 }
 

@@ -12,7 +12,6 @@ INCS = \
 			 fibril.h \
 			 fibrile.h \
 			 fibrili.h \
-			 mmap.h \
 			 joint.h \
 			 page.h \
 			 safe.h \

@@ -6,7 +6,6 @@
 #include <signal.h>
 #include <unistd.h>
 
-#include "mmap.h"
 #include "safe.h"
 #include "util.h"
 #include "sched.h"
@@ -22,7 +21,6 @@ static int _main(void * id_)
   int id = (int) (size_t) id_;
 
   tlmap_init_local(id, _nprocs);
-  mmap_init_local(id, _nprocs);
   stack_init_local(id, _nprocs);
 
   barrier();
