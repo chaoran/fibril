@@ -21,6 +21,7 @@ void sched_restart()
 static inline __attribute__ ((noreturn))
 void sched_resume(const fibril_t * frptr)
 {
+  DEBUG_DUMP(2, "jump:", (frptr, "%p"), (frptr->rip, "%p"));
   __asm__ (
       "mov\t%0,%%rsp\n\t"
       "mov\t%1,%%rbp\n\t"
