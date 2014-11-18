@@ -166,7 +166,7 @@ void mmap_init_local(int id, int nprocs)
   DEBUG_ASSERT(TLS_OFFSETS != NULL);
 
   _base.size = (size_t) PAGE_ALIGN_DOWN(_size / nprocs);
-  _base.addr = _addr + (nprocs - id - 1) * _size;
+  _base.addr = _addr + (nprocs - id - 1) * _base.size;
 
   if (id) {
     _unmapped = &_base;
