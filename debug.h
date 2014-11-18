@@ -66,7 +66,7 @@
 
 #define DEBUG_ASSERT(F) do { \
   if (!(F)) { \
-    DEBUG_DUMP(0, "assertion failed: " # F "\n"); \
+    DEBUG_DUMP(0, "assertion failed: " # F); \
     DEBUG_BREAK(!(F)); \
   } \
 } while (0)
@@ -75,8 +75,8 @@
   volatile int wait = (T); \
   if (wait) { \
     if (DEBUG_WAIT) { \
-      fprintf(stderr, "process %d is waiting for debugger\n", getpid()); \
-      fflush(stderr); \
+      int pid = getpid(); \
+      DEBUG_DUMP(0, "waiting for debugger:", (pid, "%d")); \
     } else { \
       abort(); \
     } \
