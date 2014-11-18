@@ -57,7 +57,7 @@ static void segfault(int signum, siginfo_t * info, void * ctxt)
   DEBUG_ASSERT(id != TID);
 
   if (id != -1) {
-    const map_t * map = (void *) _mapped + TLS_OFFSETS[id];
+    const map_t * map = *(map_t **) tlmap_shptr(&_mapped, id);
 
     /** Find the mapping. */
     while (map) {
@@ -135,7 +135,7 @@ static map_t * new_map()
 
     /** Use the global pointer if tls is initialized. */
     if (TLS_OFFSETS) {
-      map = (void *) map + TLS_OFFSETS[TID];
+      map = tlmap_shptr(map, TID);
     }
   }
 
@@ -144,6 +144,8 @@ static map_t * new_map()
 
 static map_t * rewrite(map_t * map)
 {
+  DEBUG_ASSERT(TID == 0);
+
   extern void * _fibril_tls_start, * _fibril_tls_end;
 
   if (map == NULL) return NULL;
@@ -155,7 +157,7 @@ static map_t * rewrite(map_t * map)
   void *  addr = (void *) map;
 
   if (addr >= start && addr < end) {
-    addr = addr + TLS_OFFSETS[0];
+    addr = tlmap_shptr(addr, 0);
   }
 
   return addr;

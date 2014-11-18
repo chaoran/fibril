@@ -14,4 +14,9 @@ extern void tlmap_setup_local(ptrdiff_t *, int, int);
 extern void tlmap_init(int nprocs);
 extern void tlmap_init_local(int id, int nprocs);
 
+static inline void * tlmap_shptr(void * ptr, int id)
+{
+  return ptr + TLS_OFFSETS[id];
+}
+
 #endif /* end of include guard: TLMAP_H */
