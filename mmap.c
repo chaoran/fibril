@@ -21,15 +21,14 @@ typedef struct _map_t {
 
 #define MAX_MAPS 1024
 
-static int _next;
 static void * _addr;
 static size_t _size;
+static struct sigaction _default_sa;
+static int __fibril_local__ _next;
 static map_t __fibril_local__ _maps[MAX_MAPS];
-static map_t __fibril_local__ _base;
 static map_t * __fibril_local__ _mapped;
 static map_t * __fibril_local__ _unmapped;
 static map_t * __fibril_local__ _unused;
-static struct sigaction _default_sa;
 
 extern int _nprocs;
 
@@ -38,9 +37,7 @@ static int find_owner(void * addr)
   if (addr < _addr || addr >= _addr + _size) return -1;
 
   size_t size = (size_t) PAGE_ALIGN_DOWN(_size / _nprocs);
-
-  int i = (addr - _addr) / size;
-  int id = (_nprocs - i - 1);
+  int id = (addr - _addr) / size;
 
   DEBUG_ASSERT(id >= 0 && id < _nprocs);
   return id;
@@ -78,6 +75,27 @@ static void segfault(int signum, siginfo_t * info, void * ctxt)
   raise(signum);
 }
 
+static map_t * new_map()
+{
+  map_t * map;
+
+  if (_unused) {
+    map = _unused;
+    _unused = map->next;
+  } else {
+    SAFE_ASSERT(_next < MAX_MAPS);
+
+    map = &_maps[_next++];
+
+    /** Use the global pointer if tls is initialized. */
+    if (TLS_OFFSETS) {
+      map = tlmap_shptr(map, TID);
+    }
+  }
+
+  return map;
+}
+
 __attribute__((constructor)) void init()
 {
   const char * mapping = "%p-%p %*s %*x %*d:%*d %*d %*[[/]%*s%*[ (deleted)]\n";
@@ -106,11 +124,12 @@ __attribute__((constructor)) void init()
 
   SAFE_NNCALL(fclose(file));
 
-  DEBUG_DUMP(2, "mmap_init:", (_addr, "%p"), (_size, "%lu"));
+  DEBUG_DUMP(2, "mmap_init:", (_addr, "%p"), (_size, "0x%lx"));
 
-  _base.addr = _addr;
-  _base.size = _size;
-  _unmapped = &_base;
+  _unmapped = new_map();
+  _unmapped->addr = _addr;
+  _unmapped->size = _size;
+  _unmapped->file = -1;
 
   /** Setup segfault handler. */
   struct sigaction sa;
@@ -119,27 +138,6 @@ __attribute__((constructor)) void init()
   sa.sa_flags = SA_SIGINFO;
 
   sigaction(SIGSEGV, &sa, &_default_sa);
-}
-
-static map_t * new_map()
-{
-  map_t * map;
-
-  if (_unused) {
-    map = _unused;
-    _unused = map->next;
-  } else {
-    SAFE_ASSERT(_next < MAX_MAPS);
-
-    map = &_maps[_next++];
-
-    /** Use the global pointer if tls is initialized. */
-    if (TLS_OFFSETS) {
-      map = tlmap_shptr(map, TID);
-    }
-  }
-
-  return map;
 }
 
 static map_t * rewrite(map_t * map)
@@ -167,19 +165,30 @@ void mmap_init_local(int id, int nprocs)
 {
   DEBUG_ASSERT(TLS_OFFSETS != NULL);
 
-  _base.size = (size_t) PAGE_ALIGN_DOWN(_size / nprocs);
-  _base.addr = _addr + (nprocs - id - 1) * _base.size;
+  size_t size = (size_t) PAGE_ALIGN_DOWN(_size / nprocs);
+  void * addr = _addr + id * size;
 
   if (id) {
-    _unmapped = &_base;
+    _unmapped = new_map();
+    _unmapped->addr = addr;
+    _unmapped->size = size;
+    _unmapped->file = -1;
   } else {
     /** Rewrite pointers to use global pointers on mapped entries. */
     _unmapped = rewrite(_unmapped);
     _mapped = rewrite(_mapped);
     _unused = rewrite(_unused);
+
+    map_t * base = _unmapped;
+
+    while (base->file != -1) {
+      base = base->next;
+    }
+
+    base->size = addr + size - base->addr;
   }
 
-  DEBUG_DUMP(2, "mmap_init_local:", (_base.addr, "%p"), (_base.size, "%lu"));
+  DEBUG_DUMP(2, "mmap_init_local:", (addr, "%p"), (size, "0x%lx"));
 }
 
 static void free_map(map_t * map)
@@ -188,186 +197,256 @@ static void free_map(map_t * map)
   _unused = map;
 }
 
-/**
- * Allocate an virtual address space.
- */
-static void * alloc(size_t size)
+static map_t * slice(map_t ** list, void * addr, size_t size)
 {
-  DEBUG_ASSERT(PAGE_ALIGNED(size));
+  DEBUG_ASSERT(*list && (*list)->addr <= addr);
 
-  /** Find a unmmapped region that is large enough. */
-  map_t * curr = _unmapped;
-  map_t * prev = NULL;
+  map_t dummy;
+  dummy.next = *list;
 
-  while (curr && curr->size < size) {
+  map_t * prev = &dummy;
+  map_t * curr = prev->next;
+
+  map_t * head;
+  map_t * tail;
+
+  while (curr && curr->addr + curr->size <= addr) {
     prev = curr;
     curr = curr->next;
   }
 
-  DEBUG_ASSERT(curr != NULL && curr->size >= size);
+  head = curr;
 
-  /** Cut out a piece from the unmapped region. */
-  void * addr = curr->addr;
-  curr->addr += size;
-  curr->size -= size;
+  map_t * next = curr->next;
 
-  /** Remove the region from _unmapped if it's size becomes zero. */
-  if (curr->size == 0) {
-    if (prev) {
-      prev->next = curr->next;
-    } else {
-      _unmapped = curr->next;
-    }
-
-    free_map(curr);
+  while (next && next->addr < addr + size && addr < next->addr + next->size) {
+    curr = next;
+    next = next->next;
   }
 
-  return addr;
-}
+  tail = curr;
 
-static int remove_map(void * addr, size_t size)
-{
-  /**
-   * @todo: Need to unmap from everyone that has mapped the same region.
-   */
-  if (TID != find_owner(addr)) return 0;
+  if (head->addr < addr) {
+    size_t diff = addr - head->addr;
 
-  map_t * prev = NULL;
-  map_t * curr = _mapped;
+    prev = head;
 
-  while (curr) {
-    if (addr >= curr->addr && addr < curr->addr + curr->size) {
-      DEBUG_ASSERT(addr + size <= curr->addr + curr->size);
+    head = new_map();
+    head->next = prev->next;
+    head->addr = addr;
+    head->size = prev->size - diff;
+    head->prot = prev->prot;
+    head->flag = prev->flag;
+    head->file = prev->file;
+    head->off  = prev->off + diff;
 
-      /** Remove the mapped entry if unmapping the whole map. */
-      if (addr == curr->addr && size == curr->size) {
-        if (prev) {
-          prev->next = curr->next;
-        } else {
-          _mapped = curr->next;
-        }
+    prev->size = diff;
 
-        free_map(curr);
-      }
-      /** Cut the top. */
-      else if (addr == curr->addr) {
-        curr->addr += size;
-        curr->size -= size;
-        curr->off += size;
-      }
-      /** Cut the bottom. */
-      else if (addr + size == curr->addr + curr->size) {
-        curr->size -= size;
-      }
-      /** Cut from the middle. */
-      else {
-        curr->size = addr - curr->addr;
-
-        map_t * map = new_map();
-        map->next = curr->next;
-        map->addr = addr + size;
-        map->size = curr->addr + curr->size - map->addr;
-        map->prot = curr->prot;
-        map->flag = curr->flag;
-        map->file = curr->file;
-        map->off  = curr->off + (map->addr - curr->addr);
-
-        curr->next = map;
-      }
-
-      break;
-    }
-
-    prev = curr;
-    curr = curr->next;
+    if (tail == prev) tail = head;
   }
 
-  return (curr != NULL);
+  if (tail->addr + tail->size > addr + size) {
+    size_t diff = tail->addr + tail->size - (addr + size);
+
+    next = new_map();
+    next->next = tail->next;
+    next->addr = addr + size;
+    next->size = diff;
+    next->prot = tail->prot;
+    next->flag = tail->flag;
+    next->file = tail->file;
+    next->off  = tail->off + (tail->size - diff);
+
+    tail->size -= diff;
+    tail->next = next;
+  }
+
+  prev->next = tail->next;
+  tail->next = NULL;
+
+  *list = dummy.next;
+  return head;
 }
 
-static void coalesce(map_t * left, map_t * right)
+static map_t * coalesce(map_t * left, map_t * right)
 {
-  if (!left || !right || left->addr + left->size != right->addr) return;
+  DEBUG_ASSERT(left != NULL);
 
-  left->size += right->size;
-  left->next = right->next;
+  /** Coalesce if they are continuous. */
+  if (right && left->file == right->file &&
+      right->addr == left->addr + left->size) {
+    DEBUG_ASSERT(left->off + left->size == right->off);
+    left->size += right->size;
+    left->next = right->next;
+    free_map(right);
 
-  free_map(right);
+    return left;
+  }
+
+  /** Do not coalesce. */
+  else {
+    left->next = right;
+    return right;
+  }
+}
+
+static map_t * insert(map_t * list, map_t * maps)
+{
+  if (!list) return maps;
+
+  /** Find the last node. */
+  map_t * tail = maps;
+
+  while (tail->next) {
+    tail = tail->next;
+  }
+
+  /** Return maps if the list is after the maps. */
+  if (tail->addr + tail->size <= list->addr) {
+    coalesce(tail, list);
+    return maps;
+  }
+
+  /** Find a position in the list to insert. */
+  map_t * prev = list;
+  map_t * next = list->next;
+
+  while (next && next->addr < tail->addr + tail->size) {
+    prev = next;
+    next = next->next;
+  }
+
+  DEBUG_ASSERT(prev && prev->addr + prev->size <= maps->addr);
+  DEBUG_ASSERT(!next || next->addr >= tail->addr + tail->size);
+
+  coalesce(prev, maps);
+  coalesce(tail, next);
+
+  return list;
 }
 
 int munmap(void * addr, size_t size)
 {
-  if (remove_map(addr, size)) {
-    map_t * prev = NULL;
-    map_t * next = _unmapped;
+  if (TID == find_owner(addr)) {
+    map_t * maps = slice(&_mapped, addr, size);
+    _unmapped = insert(_unmapped, maps);
+  }
 
-    while (next && next->addr < addr) {
-      prev = next;
+  DEBUG_DUMP(3, "munmap:", (addr, "%p"), (size, "0x%lx"));
+  return syscall(SYS_munmap, addr, size);
+}
+
+/**
+ * Allocate an virtual address space.
+ */
+static map_t * alloc(size_t size, int file)
+{
+  DEBUG_ASSERT(size > 0);
+  DEBUG_ASSERT(PAGE_ALIGNED(size));
+  DEBUG_ASSERT(_unmapped != NULL);
+
+  map_t * head = _unmapped;
+  map_t * curr = head;
+
+  if (file == -1) {
+    /** Find a unmapped consecutive region that is large enough. */
+    map_t * next = head->next;
+    size_t  totl = curr->size;
+
+    while (totl < size) {
+      if (next->addr == curr->addr + curr->size) {
+        totl += next->size;
+      } else {
+        totl = next->size;
+        head = next;
+      }
+
+      curr = next;
       next = next->next;
     }
 
-    if (!next) {
-      _unmapped = new_map();
-      _unmapped->next = NULL;
-      _unmapped->addr = addr;
-      _unmapped->size = size;
+    head = slice(&_unmapped, head->addr, size);
+  } else {
+    while (curr->file != -1) {
+      curr = curr->next;
     }
-    else if (next->addr == addr + size) {
-      next->addr -= size;
-      next->size += size;
-      coalesce(prev, next);
-    }
-    else if (prev && prev->addr + prev->size == addr) {
-      prev->size += size;
-      coalesce(prev, next);
-    }
-    else {
-      map_t * map = new_map();
-      map->addr = addr;
-      map->size = size;
-      map->next = next;
 
-      if (prev) {
-        prev->next = map;
-      } else {
-        _unmapped = map;
-      }
-    }
+    DEBUG_ASSERT(curr && curr->size >= size);
+
+    head = new_map();
+    head->next = NULL;
+    head->addr = curr->addr;
+    head->size = size;
+    head->file = -1;
+
+    curr->addr += size;
+    curr->size -= size;
   }
 
-  return syscall(SYS_munmap, addr, size);
+  return head;
+}
+
+static inline void * _mmap(const map_t * map)
+{
+  void * addr = map->addr;
+  size_t size = map->size;
+  int prot  = map->prot;
+  int flag  = map->flag;
+  int file  = map->file;
+  off_t off = map->off;
+
+  DEBUG_DUMP(3, "mmap:", (addr, "%p"), (size, "0x%lx"), (file, "%d"));
+  void * ret = (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
+  return ret;
 }
 
 void * mmap(void * addr, size_t size, int prot, int flag, int file, off_t off)
 {
+  DEBUG_ASSERT(addr == NULL && (flag & MAP_FIXED) == 0);
+
+  flag |= MAP_FIXED;
+  map_t * head = alloc(size, file);
+
+  DEBUG_ASSERT(head != NULL);
+
   if (prot & PROT_WRITE) {
     if (flag & MAP_PRIVATE) {
       if (flag & MAP_ANONYMOUS || file == -1) {
         flag ^= MAP_PRIVATE;
         flag |= MAP_SHARED;
         flag &= ~MAP_ANONYMOUS;
-        file = shmap_open(size, NULL);
       }
     }
   }
 
-  if (addr == NULL && (addr = alloc(size))) {
-    flag |= MAP_FIXED;
+  void * ret = head->addr;
+
+  /** Iterate and map each map. */
+  map_t * curr = head;
+
+  while (curr) {
+    if (file == -1) {
+      if (curr->file == -1) {
+        curr->prot = prot;
+        curr->flag = flag;
+        curr->file = shmap_open(curr->size, NULL);
+        curr->off  = 0;
+      }
+    } else {
+      DEBUG_ASSERT(curr->file == -1);
+      curr->prot = prot;
+      curr->flag = flag;
+      curr->file = file;
+      curr->off  = off;
+    }
+
+    void * addr = _mmap(curr);
+    DEBUG_ASSERT(addr == curr->addr);
+
+    curr = curr->next;
   }
 
-  /** Register the mmap. */
-  map_t * map = new_map();
-  map->next = _mapped;
-  map->addr = addr;
-  map->size = size;
-  map->prot = prot;
-  map->flag = flag;
-  map->file = file;
-  map->off  = off;
-
-  _mapped = map;
-
-  DEBUG_DUMP(3, "mmap:", (addr, "%p"), (size, "%lu"), (file, "%d"));
-  return (void *) syscall(SYS_mmap, addr, size, prot, flag, file, off);
+  _mapped = insert(_mapped, head);
+  return ret;
 }
 
