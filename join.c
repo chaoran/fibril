@@ -8,67 +8,63 @@
 #include "stack.h"
 #include "tlmap.h"
 
-static int commit(void * top, void * btm, intptr_t off,
-    const data_t * data, size_t n)
+static void commit(joint_t * jtptr, const data_t * data, size_t n)
 {
-  int l = 0;
-  int i;
+  if (n == 0) {
+    unlock(&jtptr->lock);
+    return;
+  }
 
-  for (i = 0; i < n; ++i) {
-    void * addr = data[i].addr;
+  size_t left = n;
+  int locked = 1;
+  int commited[n];
 
-    if (addr < top || addr >= btm) continue;
+  memset(commited, 0, n * sizeof(int));
 
-    void * dest = addr + off;
-    size_t size = data[i].size;
+  do {
+    void *  start = jtptr->stptr->top;
+    void *    end = jtptr->stptr->btm;
+    ptrdiff_t off = jtptr->stptr->off;
 
-    DEBUG_ASSERT(addr + size <= btm);
+    int i;
+    for (i = 0; i < n; ++i) {
+      if (commited[i]) continue;
 
-    switch (size) {
-      case 0: break;
-      case 1: *(int8_t  *) dest = *(int8_t  *) addr; break;
-      case 2: *(int16_t *) dest = *(int16_t *) addr; break;
-      case 4: *(int32_t *) dest = *(int32_t *) addr; break;
-      case 8: *(int64_t *) dest = *(int64_t *) addr; break;
-      default: memcpy(dest, addr, size);
+      void * addr = data[i].addr;
+
+      if (addr >= start && addr < end) {
+        void * dest = addr + off;
+        size_t size = data[i].size;
+
+        DEBUG_ASSERT(addr + size <= end);
+
+        if (!locked) {
+          lock(&jtptr->lock);
+          locked = 1;
+        }
+
+        switch (size) {
+          case 0: break;
+          case 1: *(int8_t  *) dest = *(int8_t  *) addr; break;
+          case 2: *(int16_t *) dest = *(int16_t *) addr; break;
+          case 4: *(int32_t *) dest = *(int32_t *) addr; break;
+          case 8: *(int64_t *) dest = *(int64_t *) addr; break;
+          default: memcpy(dest, addr, size);
+        }
+
+        DEBUG_DUMP(3, "commit:", (jtptr, "%p"), (addr, "%p"), (dest, "%p"),
+            (*(long *) addr, "%ld"));
+
+        commited[i] = 1;
+        left--;
+      }
     }
 
-    l++;
-  }
-
-  return l;
-}
-
-static void commit_all(joint_t * jtptr, const data_t * data, size_t n)
-{
-  void * top = jtptr->stptr->top;
-  void * btm = jtptr->stptr->btm;
-  intptr_t off = jtptr->stptr->off;
-
-  size_t left = n - commit(top, btm, off, data, n);
-
-  joint_t * parent = jtptr->parent;
-
-  DEBUG_ASSERT(parent->stptr->top <= btm);
-  top = btm;
-
-  while (left > 0 && NULL != (jtptr = parent)) {
-    btm = jtptr->stptr->btm;
-
-    if (btm <= top) continue;
-
-    lock(&jtptr->lock);
-
-    off = jtptr->stptr->off;
-    left -= commit(top, btm, off, data, n);
-
-    /** Read the parent pointer before unlock. */
-    parent = jtptr->parent;
-    unlock(&jtptr->lock);
-
-    DEBUG_ASSERT(parent->stptr->top <= btm);
-    top = btm;
-  }
+    if (locked) {
+      unlock(&jtptr->lock);
+      locked = 0;
+    }
+  } while (left > 0 && (jtptr = jtptr->parent));
 }
 
 int fibrile_join(const fibril_t * frptr)
@@ -119,27 +115,16 @@ void fibrile_resume(const fibril_t * frptr, const data_t * data, size_t n)
 
   lock(&jtptr->lock);
 
-  if (n > 0) commit_all(jtptr, data, n);
-
-  int count = jtptr->count;
-
-  if (count == 0) {
-    fibrile_deq.jtptr = jtptr->parent;
-
-    joint_import(jtptr);
-    unlock(&jtptr->lock);
-
-    free(jtptr->stptr->top + jtptr->stptr->off);
-    free(jtptr);
-
+  if (--jtptr->count < 0) {
     DEBUG_DUMP(1, "resume (success):", (frptr, "%p"), (jtptr, "%p"));
-    sched_resume(frptr);
-  } else {
-    jtptr->count = count - 1;
-    unlock(&jtptr->lock);
 
+    commit(jtptr, data, n);
+    sched_resume(jtptr, frptr);
+  } else {
     DEBUG_DUMP(1, "resume (failed):", (frptr, "%p"), (jtptr, "%p"),
         (jtptr->count, "%d"));
+
+    commit(jtptr, data, n);
     sched_restart();
   }
 }

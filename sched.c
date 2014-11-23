@@ -10,7 +10,50 @@ static deque_t ** _deqs;
 static int __fibril_shared__ _done;
 static fibril_t __fibril_shared__ _exit_fr;
 
-joint_t __fibril_shared__ _joint;
+joint_t * __fibril_shared__ _jtptr;
+
+__attribute__((noreturn, noinline))
+static void resume(joint_t * jtptr, const fibril_t * frptr)
+{
+  void * dest = jtptr->stptr->top;
+  void * addr = jtptr->stptr->top + jtptr->stptr->off;
+
+  DEBUG_ASSERT(__builtin_frame_address(0) < dest);
+  DEBUG_DUMP(3, "import:", (jtptr, "%p"), (dest, "%p"), (addr, "%p"));
+
+  if (jtptr->count < 0) {
+    memcpy(dest, addr, jtptr->stptr->btm - dest);
+    free(addr);
+
+    fibrile_deq.jtptr = jtptr->parent;
+    free(jtptr);
+  } else {
+    memcpy(dest, addr, STACK_BOTTOM - dest);
+
+    fibrile_deq.jtptr = jtptr;
+    unlock(&jtptr->lock);
+  }
+
+  DEBUG_DUMP(2, "jump:", (frptr, "%p"), (frptr->rip, "%p"));
+  DEBUG_ASSERT(frptr->rip != NULL);
+
+  __asm__ (
+      "mov\t%0,%%rsp\n\t"
+      "mov\t%1,%%rbp\n\t"
+      "mov\t%2,%%rbx\n\t"
+      "mov\t%3,%%r12\n\t"
+      "mov\t%4,%%r13\n\t"
+      "mov\t%5,%%r14\n\t"
+      "mov\t%6,%%r15\n\t"
+      "jmp\t*(%7)" : :
+      "g" (frptr->rsp), "g" (frptr->rbp),
+      "g" (frptr->rbx), "g" (frptr->r12),
+      "g" (frptr->r13), "g" (frptr->r14),
+      "g" (frptr->r15), "g" (&frptr->rip)
+  );
+
+  unreachable();
+}
 
 void sched_init(int nprocs)
 {
@@ -24,13 +67,15 @@ void sched_init(int nprocs)
   }
 
   /** Setup initial joint. */
-  _joint.stack.top = STACK_BOTTOM;
-  _joint.stack.btm = STACK_BOTTOM;
-  _joint.stack.off = STACK_OFFSETS[0];
-  _joint.stptr = &_joint.stack;
+  _jtptr = malloc(sizeof(joint_t));
+  _jtptr->lock = 1;
+  _jtptr->count = -1;
+  _jtptr->stack.top = STACK_BOTTOM;
+  _jtptr->stack.btm = STACK_BOTTOM;
+  _jtptr->stack.off = STACK_OFFSETS[0];
+  _jtptr->stptr = &_jtptr->stack;
 
-  fibrile_deq.jtptr = &_joint;
-
+  fibrile_deq.jtptr = _jtptr;
   lock(&_done);
 }
 
@@ -45,17 +90,7 @@ void sched_work(int me, int nprocs)
 
     if (frptr == NULL) continue;
 
-    joint_t * jtptr = frptr->jtp;
-
-    void * dest = jtptr->stptr->top;
-    void * addr = dest + STACK_OFFSETS[victim];
-    size_t size = STACK_BOTTOM - dest;
-
-    memcpy(dest, addr, size);
-
-    fibrile_deq.jtptr = jtptr;
-    unlock(&jtptr->lock);
-    sched_resume(frptr);
+    resume(frptr->jtp, frptr);
   }
 
   unlock(&_done);
@@ -64,14 +99,8 @@ void sched_work(int me, int nprocs)
     barrier();
     exit(0);
   } else {
-    joint_t * jtptr = _exit_fr.jtp;
-
-    lock(&jtptr->lock);
-    joint_import(jtptr);
-    free(jtptr->stptr->top + jtptr->stptr->off);
-    unlock(&jtptr->lock);
-
-    sched_resume(&_exit_fr);
+    DEBUG_ASSERT(_jtptr->count < 0 && _jtptr->lock == 0);
+    resume(_jtptr, &_exit_fr);
   }
 }
 
@@ -83,9 +112,8 @@ void sched_exit()
     fibril_make(&_exit_fr);
 
     fibrile_save(&_exit_fr, &&AFTER_EXIT);
-    _joint.lock = 1;
-    _joint.stptr->top = _exit_fr.rsp;
-    _exit_fr.jtp = &_joint;
+    _jtptr->stptr->top = _exit_fr.rsp;
+    _exit_fr.jtp = _jtptr;
 
     unlock(&_done);
     fibrile_yield(&_exit_fr);
@@ -94,5 +122,20 @@ void sched_exit()
 AFTER_EXIT:
   barrier();
   return;
+}
+
+__attribute__((noreturn, optimize("-fno-omit-frame-pointer")))
+void sched_resume(joint_t * jtptr, const fibril_t * frptr)
+{
+  DEBUG_ASSERT(jtptr == fibrile_deq.jtptr);
+
+  register void * rsp asm ("rsp");
+  void * dest = jtptr->stptr->top;
+
+  if (rsp > dest) {
+    rsp = dest;
+  }
+
+  resume(jtptr, frptr);
 }
 
