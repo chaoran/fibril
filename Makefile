@@ -2,22 +2,17 @@ EXEC = fib
 CFLAGS = -Wall -pthread -g -O2
 LDFLAGS = -pthread
 LDLIBS = -lpthread
+OUTPUT_OPTION = -MMD -MP -o $@
 
-INCS = \
-			 atomic.h \
-			 fibril.h \
-			 fibrili.h \
-			 sched.h \
-
-SRCS = \
-			 fib.c \
-			 fibril.c \
-
+SRCS = $(wildcard *.c)
 OBJS = $(SRCS:.c=.o)
+DEPS = $(SRCS:.c=.d)
+
+-include $(DEPS)
 
 $(EXEC): $(OBJS) $(INCS)
 
 all: $(EXEC)
 
 clean:
-	rm -f $(EXEC) $(OBJS) core.* vgcore.*
+	rm -f $(EXEC) $(OBJS) $(DEPS) core.* vgcore.*
