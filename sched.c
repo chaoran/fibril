@@ -8,8 +8,8 @@
 
 __thread int _tid;
 
-static __thread deque_t ** _deqs;
-static void * _stack;
+static __thread void * _stack;
+static deque_t ** _deqs;
 static fibril_t * _frptr;
 
 #define LONGJMP(frptr) do { \
@@ -85,6 +85,7 @@ void sched_start(int id, int nprocs)
 
   sync_barrier(nprocs);
   _deqs[id] = &fibrili_deq;
+  sync_barrier(nprocs);
 
   if (id != 0) sched_restart(NULL);
 }
