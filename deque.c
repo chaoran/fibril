@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include "sync.h"
+#include "debug.h"
 #include "deque.h"
 
 __thread deque_t fibrili_deq;
@@ -54,6 +55,7 @@ struct _fibril_t * deque_steal(deque_t * deq)
   }
 
   struct _fibril_t * frptr = deq->buff[head];
+  DEBUG_ASSERT(frptr != NULL);
 
   sync_lock(frptr->lock);
 
@@ -61,8 +63,6 @@ struct _fibril_t * deque_steal(deque_t * deq)
   frptr->count = count < 0 ? 1 : count + 1;
 
   sync_unlock(deq->lock);
-  sync_unlock(frptr->lock);
-
   return frptr;
 }
 

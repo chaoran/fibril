@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include "sync.h"
 #include "sched.h"
+#include "debug.h"
 #include "deque.h"
 
 #define STACK_SIZE (8 * 1024 * 1024)
@@ -29,6 +30,9 @@ void execute(fibril_t * frptr)
 {
   void * stack = malloc(STACK_SIZE);
   frptr->stack = stack;
+  sync_unlock(frptr->lock);
+
+  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"));
 
   __asm__ ( "mov\t%0,%%rsp" : : "g" (stack + STACK_SIZE) );
   LONGJMP(frptr);
