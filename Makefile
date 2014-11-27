@@ -22,4 +22,4 @@ $(EXEC): $(OBJS)
 		rm -f $@.$$$$
 
 clean:
-	rm -f $(EXEC) $(OBJS) $(DEPS) core.* vgcore.*
+	rm -f $(EXEC) $(OBJS) $(DEPS) *.d.* core.* vgcore.*
