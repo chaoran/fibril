@@ -47,10 +47,11 @@ void schedule(fibril_t * frptr, int id, int nprocs)
   while (sync_load(_frptr) == NULL) {
     int victim = rand() % nprocs;
 
-    if (victim == id) {
+    if (victim != id) {
       frptr = deque_steal(_deqs[victim]);
 
       if (frptr) {
+        DEBUG_DUMP(1, "steal:", (victim, "%d"), (frptr, "%p"));
         execute(frptr);
       }
     }
