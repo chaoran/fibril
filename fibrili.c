@@ -1,6 +1,6 @@
 #include <stdlib.h>
+#include "sync.h"
 #include "sched.h"
-#include "atomic.h"
 #include "fibril.h"
 
 int fibrili_join(fibril_t * frptr)
@@ -8,12 +8,12 @@ int fibrili_join(fibril_t * frptr)
   /** Free the extra stack. */
   free(frptr->stack);
 
-  atomic_lock(frptr->lock);
+  sync_lock(frptr->lock);
 
   int success = (frptr->count-- == 0);
 
   if (success) {
-    atomic_unlock(frptr->lock);
+    sync_unlock(frptr->lock);
   }
 
   /** Restore the original rsp. */
@@ -25,11 +25,11 @@ void fibrili_resume(fibril_t * frptr)
 {
   int count;
 
-  atomic_lock(frptr->lock);
+  sync_lock(frptr->lock);
   count = frptr->count--;
 
   if (count == 0) {
-    atomic_unlock(frptr->lock);
+    sync_unlock(frptr->lock);
     sched_resume(frptr);
   } else {
     sched_restart(frptr);

@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <pthread.h>
+#include "sync.h"
 #include "sched.h"
 #include "deque.h"
-#include "atomic.h"
 
 #define STACK_SIZE (8 * 1024 * 1024)
 
@@ -38,9 +38,9 @@ __attribute__((noreturn)) static
 void schedule(fibril_t * frptr, int id, int nprocs)
 {
   /** Unlock after switch to scheduler stack. */
-  if (frptr) atomic_unlock(frptr->lock);
+  if (frptr) sync_unlock(frptr->lock);
 
-  while (atomic_load(_frptr) == NULL) {
+  while (sync_load(_frptr) == NULL) {
     int victim = rand() % nprocs;
 
     if (victim == id) {
@@ -77,7 +77,7 @@ void sched_start(int id, int nprocs)
     _deqs = malloc(sizeof(deque_t * [nprocs]));
   }
 
-  atomic_barrier(nprocs);
+  sync_barrier(nprocs);
   _deqs[id] = &fibrili_deq;
 
   if (id != 0) sched_restart(NULL);

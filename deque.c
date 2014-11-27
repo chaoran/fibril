@@ -1,6 +1,6 @@
 #include <stddef.h>
+#include "sync.h"
 #include "deque.h"
-#include "atomic.h"
 
 __thread deque_t fibrili_deq;
 
@@ -41,27 +41,27 @@ int fibrili_pop(void)
 
 struct _fibril_t * deque_steal(deque_t * deq)
 {
-  atomic_lock(deq->lock);
+  sync_lock(deq->lock);
 
   int head = deq->head++;
 
-  atomic_fence();
+  sync_fence();
 
   if (head >= deq->tail) {
     deq->head--;
-    atomic_unlock(deq->lock);
+    sync_unlock(deq->lock);
     return NULL;
   }
 
   struct _fibril_t * frptr = deq->buff[head];
 
-  atomic_lock(frptr->lock);
+  sync_lock(frptr->lock);
 
   int count = frptr->count;
   frptr->count = count < 0 ? 1 : count + 1;
 
-  atomic_unlock(deq->lock);
-  atomic_unlock(frptr->lock);
+  sync_unlock(deq->lock);
+  sync_unlock(frptr->lock);
 
   return frptr;
 }
