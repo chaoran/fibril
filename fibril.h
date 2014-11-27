@@ -20,7 +20,7 @@ typedef struct _fibril_t fibril_t;
   fibrili_push(f); \
   ret = fn(__VA_ARGS__); \
   if (!fibrili_pop()) { \
-    volatile __auto_type retptr = &ret; \
+    volatile __auto_type volatile retptr = &ret; \
     *retptr = ret; \
     fibrili_resume(f); \
     AFTER_FORK_##fn##_##__FILE__##__LINE__: ret = *retptr; \
