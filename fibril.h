@@ -5,6 +5,9 @@
 
 typedef struct _fibril_t fibril_t;
 
+#define FIBRIL_SUCCESS 0
+#define FIBRIL_MAX_PROCS -1
+
 #define fibril_init(frptr) do { \
   fibril_t * f = (frptr); \
   f->count = -1; \
@@ -31,5 +34,8 @@ typedef struct _fibril_t fibril_t;
   fibrili_yield(f); \
   AFTER_JOIN_##__FILE__##__LINE__: break; \
 } while (0)
+
+extern int fibril_rt_init(int nprocs);
+extern int fibril_rt_exit();
 
 #endif /* end of include guard: FIBRIL_H */

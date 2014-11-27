@@ -4,14 +4,17 @@
 struct _fibril_t {
   int count;
   char lock;
-  void * rsp;
-  void * rbp;
-  void * rbx;
-  void * r12;
-  void * r13;
-  void * r14;
-  void * r15;
-  void * rip;
+  void * stack;
+  struct {
+    void * rsp;
+    void * rbp;
+    void * rbx;
+    void * r12;
+    void * r13;
+    void * r14;
+    void * r15;
+    void * rip;
+  } regs;
 };
 
 extern __thread struct _fibrili_deque_t {
@@ -36,13 +39,13 @@ __attribute__((noreturn)) extern void fibrili_yield(struct _fibril_t * frptr);
   register void * r13 asm ("r13"); \
   register void * r14 asm ("r14"); \
   register void * r15 asm ("r15"); \
-  frptr->rbp = rbp; \
-  frptr->rbx = rbx; \
-  frptr->r12 = r12; \
-  frptr->r13 = r13; \
-  frptr->r14 = r14; \
-  frptr->r15 = r15; \
-  frptr->rip = &&llbl; \
+  (frptr)->regs.rbp = rbp; \
+  (frptr)->regs.rbx = rbx; \
+  (frptr)->regs.r12 = r12; \
+  (frptr)->regs.r13 = r13; \
+  (frptr)->regs.r14 = r14; \
+  (frptr)->regs.r15 = r15; \
+  (frptr)->regs.rip = &&llbl; \
 } while (0)
 
 extern inline

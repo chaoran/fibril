@@ -1,21 +1,24 @@
+#include <stdlib.h>
 #include "sched.h"
 #include "atomic.h"
 #include "fibril.h"
 
-typedef struct _fibrili_deque_t deque_t;
-
-__thread deque_t fibrili_deq;
-
 int fibrili_join(fibril_t * frptr)
 {
+  /** Free the extra stack. */
+  free(frptr->stack);
+
   atomic_lock(frptr->lock);
 
-  if (frptr->count-- == 0) {
+  int success = (frptr->count-- == 0);
+
+  if (success) {
     atomic_unlock(frptr->lock);
-    return 1;
   }
 
-  return 0;
+  /** Restore the original rsp. */
+  __asm__ ( "mov\t%0,%%rsp" : : "g" (frptr->regs.rsp) );
+  return success;
 }
 
 void fibrili_resume(fibril_t * frptr)
@@ -24,18 +27,17 @@ void fibrili_resume(fibril_t * frptr)
 
   atomic_lock(frptr->lock);
   count = frptr->count--;
-  atomic_unlock(frptr->lock);
 
   if (count == 0) {
+    atomic_unlock(frptr->lock);
     sched_resume(frptr);
   } else {
-    sched_resched();
+    sched_restart(frptr);
   }
 }
 
 void fibrili_yield(fibril_t * frptr)
 {
-  atomic_unlock(frptr->lock);
-  sched_resched();
+  sched_restart(frptr);
 }
 
