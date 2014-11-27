@@ -57,6 +57,8 @@ void schedule(fibril_t * frptr, int id, int nprocs)
     }
   }
 
+  sync_barrier(nprocs);
+
   if (id) pthread_exit(NULL);
   else sched_resume(_frptr);
 
@@ -88,6 +90,8 @@ void sched_start(int id, int nprocs)
   _deqs[id] = &fibrili_deq;
   sync_barrier(nprocs);
 
+  DEBUG_DUMP(2, "sched_start:", (id, "%d"), (_deqs[id], "%p"));
+
   if (id != 0) sched_restart(NULL);
 }
 
@@ -101,6 +105,9 @@ void sched_stop()
 
     _frptr = &fr;
     sched_restart(&fr);
+  } else {
+    _frptr = &fr;
+    sync_barrier(PARAM_NUM_PROCS);
   }
 
 AFTER_YIELD:
