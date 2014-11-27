@@ -1,5 +1,5 @@
 EXEC = fib
-CFLAGS = -Wall -pthread -g -O2
+CFLAGS = -Wall -pthread -g -DENABLE_DEBUG -DDEBUG_LEVEL=3
 LDFLAGS = -pthread
 LDLIBS = -lpthread
 

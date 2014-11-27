@@ -1,25 +1,8 @@
 #include <stdlib.h>
 #include "sync.h"
+#include "debug.h"
 #include "sched.h"
 #include "fibril.h"
-
-int fibrili_join(fibril_t * frptr)
-{
-  /** Free the extra stack. */
-  free(frptr->stack);
-
-  sync_lock(frptr->lock);
-
-  int success = (frptr->count-- == 0);
-
-  if (success) {
-    sync_unlock(frptr->lock);
-  }
-
-  /** Restore the original rsp. */
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (frptr->regs.rsp) );
-  return success;
-}
 
 void fibrili_resume(fibril_t * frptr)
 {
@@ -28,8 +11,12 @@ void fibrili_resume(fibril_t * frptr)
   sync_lock(frptr->lock);
   count = frptr->count--;
 
+  DEBUG_DUMP(3, "resume:", (frptr, "%p"), (count, "%d"));
+
   if (count == 0) {
     sync_unlock(frptr->lock);
+
+    free(frptr->stack);
     sched_resume(frptr);
   } else {
     sched_restart(frptr);
@@ -38,6 +25,8 @@ void fibrili_resume(fibril_t * frptr)
 
 void fibrili_yield(fibril_t * frptr)
 {
+  DEBUG_DUMP(3, "yield:", (frptr, "%p"), (frptr->count, "%d"));
+  frptr->regs.rip = __builtin_extract_return_addr(__builtin_return_address(0));
   sched_restart(frptr);
 }
 

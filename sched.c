@@ -19,7 +19,8 @@ static fibril_t * _frptr;
             "mov\t 0x20(%0),%%r13\n\t" \
             "mov\t 0x28(%0),%%r14\n\t" \
             "mov\t 0x30(%0),%%r15\n\t" \
-            "jmp\t*0x38(%0)" : : "g" (&(frptr)->regs) ); \
+            "jmp\t*0x38(%0)" : : "r" (&(frptr)->regs) \
+            : "rbx", "r12", "r13", "r14", "r15" ); \
   __builtin_unreachable(); \
 } while (0)
 
@@ -101,7 +102,8 @@ void sched_stop()
 
   if (_tid != 0) {
     fibril_init(&fr);
-    fibrili_save(&fr, AFTER_YIELD);
+    fibrili_save(&fr);
+    fr.regs.rip = &&AFTER_YIELD;
 
     _frptr = &fr;
     sched_restart(&fr);
