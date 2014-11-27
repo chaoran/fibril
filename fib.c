@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include "fibril.h"
 
+__attribute__((optimize("-fno-omit-frame-pointer")))
 int fib(int n)
 {
   if (n < 2) return n;
