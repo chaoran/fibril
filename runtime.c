@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
+#include "debug.h"
 #include "param.h"
 #include "sched.h"
 #include "fibril.h"
@@ -25,6 +26,8 @@ int fibril_rt_init(int nprocs)
     PARAM_NUM_PROCS = nprocs;
   }
 
+  DEBUG_DUMP(2, "fibril_rt_init:", (nprocs, "%d"));
+
   size_t stacksize = PARAM_STACK_SIZE;
 
   _procs = malloc(sizeof(pthread_t [nprocs]));
@@ -33,7 +36,7 @@ int fibril_rt_init(int nprocs)
   pthread_attr_t attrs[nprocs];
   int i;
 
-  for (i = 0; i < nprocs; ++i) {
+  for (i = 1; i < nprocs; ++i) {
     _stacks[i] = malloc(stacksize);
     pthread_attr_init(&attrs[i]);
     pthread_attr_setstack(&attrs[i], _stacks[i], stacksize);
