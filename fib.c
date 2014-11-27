@@ -18,8 +18,12 @@ int fib(int n)
 
 int main(int argc, const char *argv[])
 {
+  fibril_rt_init(FIBRIL_MAX_PROCS);
+
   int n = 7;
   int m = fib(n);
+
+  fibril_rt_exit();
 
   printf("fib(%d)=%d\n", n, m);
   return 0;
