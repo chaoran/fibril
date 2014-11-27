@@ -8,6 +8,7 @@ int fib(int n)
   int x, y;
 
   fibril_t fr;
+  fibril_init(&fr);
 
   fibril_fork(&fr, fib, x, n - 1);
   y = fib(n - 2);
