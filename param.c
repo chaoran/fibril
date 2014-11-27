@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <pthread.h>
+#include "debug.h"
 #include "param.h"
 
 size_t PARAM_STACK_SIZE;
@@ -27,4 +28,6 @@ __attribute__((constructor)) void init(void)
 {
   PARAM_STACK_SIZE = get_stack_size();
   PARAM_NUM_PROCS = get_num_procs();
+
+  DEBUG_DUMP(2, "init:", (PARAM_NUM_PROCS, "%d"), (PARAM_STACK_SIZE, "0x%lx"));
 }
