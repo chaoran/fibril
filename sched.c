@@ -4,10 +4,8 @@
 #include "sched.h"
 #include "debug.h"
 #include "deque.h"
+#include "param.h"
 
-#define STACK_SIZE (8 * 1024 * 1024)
-
-int _nprocs;
 __thread int _tid;
 
 static __thread deque_t ** _deqs;
@@ -28,13 +26,15 @@ static fibril_t * _frptr;
 __attribute__((noreturn, noinline)) static
 void execute(fibril_t * frptr)
 {
-  void * stack = malloc(STACK_SIZE);
+  size_t size = PARAM_STACK_SIZE;
+  void * stack = malloc(size);
+
   frptr->stack = stack;
   sync_unlock(frptr->lock);
 
   DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"));
 
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (stack + STACK_SIZE) );
+  __asm__ ( "mov\t%0,%%rsp" : : "g" (stack + size) );
   LONGJMP(frptr);
 }
 
@@ -67,11 +67,13 @@ void sched_restart(fibril_t * frptr)
   /** Change to scheduler stack. */
   __asm__ ( "mov\t%0,%%rsp" : : "g" (_stack) );
 
-  schedule(frptr, _tid, _nprocs);
+  schedule(frptr, _tid, PARAM_NUM_PROCS);
 }
 
 void sched_start(int id, int nprocs)
 {
+  _tid = id;
+
   /** Setup the scheduler stack. */
   register void * rsp asm ("rsp");
   _stack = rsp;
