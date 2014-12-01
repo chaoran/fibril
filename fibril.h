@@ -15,24 +15,20 @@ typedef struct _fibril_t fibril_t;
 } while (0)
 
 #define fibril_fork(frptr, fn, ret, ...) do { \
-  __label__ AFTER_FORK; \
   fibril_t * f = (frptr); \
-  fibrili_save(f); \
-  f->regs.rip = &&AFTER_FORK; \
+  if (fibrili_setjmp(f)) break; \
   fibrili_push(f); \
   ret = fn(__VA_ARGS__); \
-  if (!fibrili_pop()) { \
-    volatile __auto_type retptr = &ret; \
-    *retptr = ret; \
-    fibrili_resume(f); \
-  } \
-  AFTER_FORK: fibrili_flush(); \
+  if (fibrili_pop()) break; \
+  volatile __auto_type retptr = &ret; \
+  *retptr = ret; \
+  fibrili_resume(f); \
 } while (0)
 
 #define fibril_join(frptr) do { \
   fibril_t * f = (frptr); \
   if (f->count == -1 || fibrili_join(f)) break; \
-  fibrili_save(f); \
+  if (fibrili_setjmp(f)) break; \
   fibrili_yield(f); \
 } while (0)
 

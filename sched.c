@@ -12,18 +12,6 @@ static __thread fibril_t * _restart;
 static deque_t ** _deqs;
 static fibril_t * _stop;
 
-#define LONGJMP(frptr) do { \
-  __asm__ ( "mov\t 0x8 (%0),%%rbp\n\t" \
-            "mov\t 0x10(%0),%%rbx\n\t" \
-            "mov\t 0x18(%0),%%r12\n\t" \
-            "mov\t 0x20(%0),%%r13\n\t" \
-            "mov\t 0x28(%0),%%r14\n\t" \
-            "mov\t 0x30(%0),%%r15\n\t" \
-            "jmp\t*0x38(%0)" : : "r" (&(frptr)->regs) \
-            : "rbx", "r12", "r13", "r14", "r15" ); \
-  __builtin_unreachable(); \
-} while (0)
-
 __attribute__((noreturn, noinline)) static
 void execute(fibril_t * frptr)
 {
@@ -35,25 +23,20 @@ void execute(fibril_t * frptr)
 
   DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"));
 
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (stack + size) );
-  LONGJMP(frptr);
+  fibrili_longjmp(frptr, stack + size);
 }
 
 static inline
 void schedule(int id, int nprocs)
 {
   fibril_t fr;
-
-  fibril_init(&fr);
-  fibrili_save(&fr);
-  fr.regs.rip = &&RESTART;
-
   _restart = &fr;
 
-  if (id == 0) return;
+  if (0 == fibrili_setjmp(&fr) && id == 0) {
+    return;
+  }
 
   while (sync_load(_stop) == NULL) {
-RESTART: fibrili_flush();
     int victim = rand() % nprocs;
 
     if (victim != id) {
@@ -69,7 +52,7 @@ RESTART: fibrili_flush();
   sync_barrier(PARAM_NUM_PROCS);
 
   if (id) pthread_exit(NULL);
-  else sched_resume(_stop);
+  else fibrili_longjmp(_stop, NULL);
 }
 
 void sched_start(int id, int nprocs)
@@ -90,41 +73,45 @@ void sched_start(int id, int nprocs)
   schedule(id, nprocs);
 }
 
-#define RESUME(frptr) do { \
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (frptr->regs.rsp) ); \
-  LONGJMP(frptr); \
-} while (0)
-
-void sched_restart(fibril_t * frptr)
-{
-  sync_unlock(frptr->lock);
-  RESUME(_restart);
-}
-
 void sched_stop()
 {
   fibril_t fr;
-
-  DEBUG_DUMP(2, "sched_stop:");
+  _stop = &fr;
 
   if (_tid != 0) {
-    fibril_init(&fr);
-    fibrili_save(&fr);
-    fr.regs.rip = &&AFTER_YIELD;
-
-    _stop = &fr;
-    sched_restart(_stop);
+    if (0 == fibrili_setjmp(&fr)) {
+      fibrili_yield(_stop);
+    }
   } else {
-    _stop = &fr;
     sync_barrier(PARAM_NUM_PROCS);
   }
 
-AFTER_YIELD: fibrili_flush();
   free(_deqs);
 }
 
-void sched_resume(const fibril_t * frptr)
+void fibrili_yield(fibril_t * frptr)
 {
-  RESUME(frptr);
+  sync_unlock(frptr->lock);
+  fibrili_longjmp(_restart, NULL);
 }
+
+void fibrili_resume(fibril_t * frptr)
+{
+  int count;
+
+  sync_lock(frptr->lock);
+  count = frptr->count--;
+
+  DEBUG_DUMP(3, "resume:", (frptr, "%p"), (count, "%d"));
+
+  if (count == 0) {
+    sync_unlock(frptr->lock);
+
+    free(frptr->stack);
+    fibrili_longjmp(frptr, NULL);
+  } else {
+    fibrili_yield(frptr);
+  }
+}
+
 
