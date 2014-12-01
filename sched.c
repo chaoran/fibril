@@ -8,9 +8,9 @@
 
 __thread int _tid;
 
-static __thread void * _stack;
+static __thread fibril_t * _restart;
 static deque_t ** _deqs;
-static fibril_t * _frptr;
+static fibril_t * _stop;
 
 #define LONGJMP(frptr) do { \
   __asm__ ( "mov\t 0x8 (%0),%%rbp\n\t" \
@@ -39,16 +39,27 @@ void execute(fibril_t * frptr)
   LONGJMP(frptr);
 }
 
-__attribute__((noreturn)) static
-void schedule(fibril_t * frptr, int id, int nprocs)
+void schedule(fibril_t * frptr)
 {
-  /** Unlock after switch to scheduler stack. */
-  if (frptr) sync_unlock(frptr->lock);
+  fibril_t fr;
 
-  while (sync_load(_frptr) == NULL) {
-    int victim = rand() % nprocs;
+  if (frptr == NULL) {
+    fibril_init(&fr);
+    fibrili_save(&fr);
+    fr.regs.rip = &&RESTART;
 
-    if (victim != id) {
+    _restart = &fr;
+
+    if (_tid == 0) return;
+  } else {
+    sync_unlock(frptr->lock);
+  }
+
+  while (sync_load(_stop) == NULL) {
+RESTART: fibrili_flush();
+    int victim = rand() % PARAM_NUM_PROCS;
+
+    if (victim != _tid) {
       frptr = deque_steal(_deqs[victim]);
 
       if (frptr) {
@@ -58,29 +69,20 @@ void schedule(fibril_t * frptr, int id, int nprocs)
     }
   }
 
-  sync_barrier(nprocs);
+  sync_barrier(PARAM_NUM_PROCS);
 
-  if (id) pthread_exit(NULL);
-  else sched_resume(_frptr);
-
-  __builtin_unreachable();
+  if (_tid) pthread_exit(NULL);
+  else sched_resume(_stop);
 }
 
 void sched_restart(fibril_t * frptr)
 {
-  /** Change to scheduler stack. */
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (_stack) );
-
-  schedule(frptr, _tid, PARAM_NUM_PROCS);
+  sched_resume(_restart);
 }
 
 void sched_start(int id, int nprocs)
 {
   _tid = id;
-
-  /** Setup the scheduler stack. */
-  register void * rsp asm ("rsp");
-  _stack = rsp;
 
   /** Setup deque pointers. */
   if (id == 0) {
@@ -93,26 +95,28 @@ void sched_start(int id, int nprocs)
 
   DEBUG_DUMP(2, "sched_start:", (id, "%d"), (_deqs[id], "%p"));
 
-  if (id != 0) sched_restart(NULL);
+  schedule(NULL);
 }
 
 void sched_stop()
 {
   fibril_t fr;
 
+  DEBUG_DUMP(2, "sched_stop:");
+
   if (_tid != 0) {
     fibril_init(&fr);
     fibrili_save(&fr);
     fr.regs.rip = &&AFTER_YIELD;
 
-    _frptr = &fr;
-    sched_restart(&fr);
+    _stop = &fr;
+    sched_restart(_stop);
   } else {
-    _frptr = &fr;
+    _stop = &fr;
     sync_barrier(PARAM_NUM_PROCS);
   }
 
-AFTER_YIELD:
+AFTER_YIELD: fibrili_flush();
   free(_deqs);
 }
 
