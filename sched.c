@@ -39,28 +39,25 @@ void execute(fibril_t * frptr)
   LONGJMP(frptr);
 }
 
-void schedule(fibril_t * frptr)
+static inline
+void schedule(int id, int nprocs)
 {
   fibril_t fr;
 
-  if (frptr == NULL) {
-    fibril_init(&fr);
-    fibrili_save(&fr);
-    fr.regs.rip = &&RESTART;
+  fibril_init(&fr);
+  fibrili_save(&fr);
+  fr.regs.rip = &&RESTART;
 
-    _restart = &fr;
+  _restart = &fr;
 
-    if (_tid == 0) return;
-  } else {
-    sync_unlock(frptr->lock);
-  }
+  if (id == 0) return;
 
   while (sync_load(_stop) == NULL) {
 RESTART: fibrili_flush();
-    int victim = rand() % PARAM_NUM_PROCS;
+    int victim = rand() % nprocs;
 
-    if (victim != _tid) {
-      frptr = deque_steal(_deqs[victim]);
+    if (victim != id) {
+      fibril_t * frptr = deque_steal(_deqs[victim]);
 
       if (frptr) {
         DEBUG_DUMP(1, "steal:", (victim, "%d"), (frptr, "%p"));
@@ -71,13 +68,8 @@ RESTART: fibrili_flush();
 
   sync_barrier(PARAM_NUM_PROCS);
 
-  if (_tid) pthread_exit(NULL);
+  if (id) pthread_exit(NULL);
   else sched_resume(_stop);
-}
-
-void sched_restart(fibril_t * frptr)
-{
-  sched_resume(_restart);
 }
 
 void sched_start(int id, int nprocs)
@@ -95,7 +87,18 @@ void sched_start(int id, int nprocs)
 
   DEBUG_DUMP(2, "sched_start:", (id, "%d"), (_deqs[id], "%p"));
 
-  schedule(NULL);
+  schedule(id, nprocs);
+}
+
+#define RESUME(frptr) do { \
+  __asm__ ( "mov\t%0,%%rsp" : : "g" (frptr->regs.rsp) ); \
+  LONGJMP(frptr); \
+} while (0)
+
+void sched_restart(fibril_t * frptr)
+{
+  sync_unlock(frptr->lock);
+  RESUME(_restart);
 }
 
 void sched_stop()
@@ -122,7 +125,6 @@ AFTER_YIELD: fibrili_flush();
 
 void sched_resume(const fibril_t * frptr)
 {
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (frptr->regs.rsp) );
-  LONGJMP(frptr);
+  RESUME(frptr);
 }
 
