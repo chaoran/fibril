@@ -81,10 +81,6 @@ int fibrili_join(struct _fibril_t * frptr)
 
   if (success) {
     fibrili_unlock(frptr->lock);
-    __asm__ ( "mov \t%0,%%rdi\n\t" /* Pass argument to free. */
-              "mov \t%1,%%rsp\n\t" /* Restore the original rsp. */
-              "call\tfree\n\t" : : /* Free extra stack */
-              "g" (frptr->stack), "g" (frptr->regs.rsp) );
   }
 
   return success;

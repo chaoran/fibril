@@ -11,6 +11,7 @@ __thread int _tid;
 static __thread fibril_t * _restart;
 static deque_t ** _deqs;
 static fibril_t * _stop;
+static void * _trampoline;
 
 __attribute__((noreturn, noinline)) static
 void execute(fibril_t * frptr)
@@ -19,11 +20,30 @@ void execute(fibril_t * frptr)
   void * stack = malloc(size);
 
   frptr->stack = stack;
+
+  void ** top = frptr->regs.rsp;
+  void ** btm = frptr->regs.rbp;
+
   sync_unlock(frptr->lock);
 
-  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"));
+  void ** rsp = stack + size;
 
-  fibrili_longjmp(frptr, stack + size);
+  *(--rsp) = btm + 1;
+  *(--rsp) = _trampoline;
+
+  switch (btm - top > 5 ? 5 : btm - top) {
+    case 5: *(--rsp) = *btm--;
+    case 4: *(--rsp) = *btm--;
+    case 3: *(--rsp) = *btm--;
+    case 2: *(--rsp) = *btm--;
+    case 1: *(--rsp) = *btm--;
+    case 0: *(--rsp) = *btm--;
+  }
+
+  rsp -= btm - top + 1;
+
+  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"), (rsp, "%p"));
+  fibrili_longjmp(frptr, rsp);
 }
 
 static inline
@@ -59,9 +79,24 @@ void sched_start(int id, int nprocs)
 {
   _tid = id;
 
-  /** Setup deque pointers. */
   if (id == 0) {
+    /** Setup deque pointers. */
     _deqs = malloc(sizeof(deque_t * [nprocs]));
+
+    /** Setup trampoline segment. */
+    if (_trampoline == NULL) {
+      _trampoline = &&TRAMPOLINE;
+    } else {
+TRAMPOLINE: __asm__ (
+                "lea\t0x8(%%rsp),%%rdi\n\t"
+                "sub\t%0,%%rdi\n\t"
+                "pop\t%%rsp\n\t"
+                "push\t%%rax\n\t"
+                "call\tfree\n\t"
+                "pop\t%%rax\n\t"
+                "ret\n\t" : : "m" (PARAM_STACK_SIZE)
+            );
+    }
   }
 
   sync_barrier(nprocs);
@@ -106,12 +141,9 @@ void fibrili_resume(fibril_t * frptr)
 
   if (count == 0) {
     sync_unlock(frptr->lock);
-
-    free(frptr->stack);
     fibrili_longjmp(frptr, NULL);
   } else {
     fibrili_yield(frptr);
   }
 }
-
 
