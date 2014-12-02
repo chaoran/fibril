@@ -22,7 +22,7 @@ int main(int argc, const char *argv[])
 {
   fibril_rt_init(FIBRIL_MAX_PROCS);
 
-  int n = 7;
+  int n = 42;
   int m = fib(n);
 
   fibril_rt_exit();
