@@ -28,6 +28,8 @@ int fibrili_setjmp(struct _fibril_t * frptr)
 __attribute((noreturn, always_inline)) extern inline
 void fibrili_longjmp(const struct _fibril_t * frptr, void * rsp)
 {
+  register const void * ptr asm ("rcx") = &frptr->regs;
+
   __asm__ ( "mov\t %1,%%rsp\n\t"
             "mov\t 0x8 (%0),%%rbp\n\t"
             "mov\t 0x10(%0),%%rbx\n\t"
@@ -37,7 +39,7 @@ void fibrili_longjmp(const struct _fibril_t * frptr, void * rsp)
             "mov\t 0x30(%0),%%r15\n\t"
             "mov\t $0x1,%%eax\n\t"
             "jmp\t*0x38(%0)"
-            : : "r" (&frptr->regs), "r" (rsp ? rsp : frptr->regs.rsp) : "eax" );
+            : : "r" (ptr), "r" (rsp ? rsp : frptr->regs.rsp) : "eax");
   __builtin_unreachable();
 }
 
