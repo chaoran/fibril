@@ -28,19 +28,37 @@ void execute(fibril_t * frptr)
 
   void ** rsp = stack + size;
 
-  *(--rsp) = btm + 1;
-  *(--rsp) = _trampoline;
+  /**
+   * Store the return address, parent's frame pointer, and the
+   * stolen frame's pointer at the bottom of the stack.
+   */
+  *(--rsp) = *(btm + 1);  /** Copy return address. */
+  *(--rsp) = *(btm);      /** Copy caller's base pointer. */
+  *(--rsp) = btm;         /** Copy base pointer. */
 
+  /**
+   * Use the trampoline as return address and the pointer to the saved
+   * variables on the new stack as parent's frame pointer.
+   */
+  void * tmp = rsp;
+
+  *(--rsp) = _trampoline;
+  *(--rsp) = tmp;
+
+  *(btm + 1) = _trampoline;
+  *(btm)     = tmp;
+
+  /** Copy the saved parent's registers to the new stack. */
   switch (btm - top > 5 ? 5 : btm - top) {
-    case 5: *(--rsp) = *btm--;
-    case 4: *(--rsp) = *btm--;
-    case 3: *(--rsp) = *btm--;
-    case 2: *(--rsp) = *btm--;
-    case 1: *(--rsp) = *btm--;
-    case 0: *(--rsp) = *btm--;
+    case 5: *(--rsp) = *(--btm);
+    case 4: *(--rsp) = *(--btm);
+    case 3: *(--rsp) = *(--btm);
+    case 2: *(--rsp) = *(--btm);
+    case 1: *(--rsp) = *(--btm);
   }
 
-  rsp -= btm - top + 1;
+  /** Adjust the stack pointer to keep correct offset to the frame pointer. */
+  rsp -= btm - top;
 
   DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"), (rsp, "%p"));
   fibrili_longjmp(frptr, rsp);
@@ -88,12 +106,17 @@ void sched_start(int id, int nprocs)
       _trampoline = &&TRAMPOLINE;
     } else {
 TRAMPOLINE: __asm__ (
-                "lea\t0x8(%%rsp),%%rdi\n\t"
+                "mov\t(%%rbp),%%rsp\n\t"
+                "mov\t0x8(%%rbp),%%rcx\n\t"
+                "mov\t%%rcx,(%%rsp)\n\t"
+                "mov\t0x10(%%rbp),%%rcx\n\t"
+                "mov\t%%rcx,0x8(%%rsp)\n\t"
+                "lea\t0x18(%%rbp),%%rdi\n\t"
                 "sub\t%0,%%rdi\n\t"
-                "pop\t%%rsp\n\t"
                 "push\t%%rax\n\t"
                 "call\tfree\n\t"
                 "pop\t%%rax\n\t"
+                "pop\t%%rbp\n\t"
                 "ret\n\t" : : "m" (PARAM_STACK_SIZE)
             );
     }
