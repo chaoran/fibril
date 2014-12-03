@@ -13,20 +13,13 @@ static deque_t ** _deqs;
 static fibril_t * _stop;
 static void * _trampoline;
 
-__attribute__((noreturn, noinline)) static
-void execute(fibril_t * frptr)
+__attribute__((noreturn)) static
+void execute(fibril_t * frptr, void ** rsp)
 {
-  size_t size = PARAM_STACK_SIZE;
-  void * stack = malloc(size);
-
-  frptr->stack = stack;
-
   void ** top = frptr->regs.rsp;
   void ** btm = frptr->regs.rbp;
 
   sync_unlock(frptr->lock);
-
-  void ** rsp = stack + size;
 
   /**
    * Store the return address, parent's frame pointer, and the
@@ -60,7 +53,7 @@ void execute(fibril_t * frptr)
   /** Adjust the stack pointer to keep correct offset to the frame pointer. */
   rsp -= btm - top;
 
-  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (stack, "%p"), (rsp, "%p"));
+  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (rsp, "%p"));
   fibrili_longjmp(frptr, rsp);
 }
 
@@ -74,6 +67,8 @@ void schedule(int id, int nprocs)
     return;
   }
 
+  void * stack = malloc(PARAM_STACK_SIZE);
+
   while (sync_load(_stop) == NULL) {
     int victim = rand() % nprocs;
 
@@ -82,11 +77,14 @@ void schedule(int id, int nprocs)
 
       if (frptr) {
         DEBUG_DUMP(1, "steal:", (victim, "%d"), (frptr, "%p"));
-        execute(frptr);
+
+        frptr->stack = stack;
+        execute(frptr, stack + PARAM_STACK_SIZE);
       }
     }
   }
 
+  free(stack);
   sync_barrier(PARAM_NUM_PROCS);
 
   if (id) pthread_exit(NULL);
