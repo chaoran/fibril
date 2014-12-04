@@ -19,7 +19,6 @@ __attribute__((noreturn)) static
 void execute(frame_t fm)
 {
   void * rsp = stack_setup(fm.frptr, fm.stack);
-  sync_unlock(fm.frptr->lock);
 
   DEBUG_DUMP(2, "execute:", (fm.frptr, "%p"), (rsp, "%p"));
   fibrili_longjmp(fm.frptr, rsp);
@@ -93,20 +92,13 @@ void sched_stop()
 void fibrili_yield(fibril_t * frptr)
 {
   _frptr = frptr;
-  sync_unlock(frptr->lock);
   fibrili_longjmp(_restart, NULL);
 }
 
 void fibrili_resume(fibril_t * frptr)
 {
-  int count;
-
-  sync_lock(frptr->lock);
-  count = frptr->count--;
-
-  if (count == 0) {
+  if (fibrili_join(frptr)) {
     stack_reinstall(frptr);
-    sync_unlock(frptr->lock);
     fibrili_longjmp(frptr, NULL);
   } else {
     fibrili_yield(frptr);

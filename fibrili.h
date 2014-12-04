@@ -3,8 +3,6 @@
 
 struct _fibril_t {
   int count;
-  char lock;
-  void * stack;
   struct {
     void * rsp;
     void * rbp;
@@ -15,6 +13,7 @@ struct _fibril_t {
     void * r15;
     void * rip;
   } regs;
+  void * stack;
 };
 
 extern __thread struct _fibrili_deque_t {
@@ -31,7 +30,8 @@ extern __thread struct _fibrili_deque_t {
 
 #include "setjmp.h"
 
-extern int fibrili_join(struct _fibril_t * frptr);
+#define fibrili_join(frptr) \
+  (0 == __atomic_fetch_sub(&frptr->count, 1, __ATOMIC_ACQ_REL))
 __attribute__((noreturn)) extern void fibrili_resume(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_yield(struct _fibril_t * frptr);
 
@@ -70,20 +70,6 @@ int fibrili_pop(void)
   }
 
   return 1;
-}
-
-__attribute__((always_inline)) extern inline
-int fibrili_join(struct _fibril_t * frptr)
-{
-  fibrili_lock(frptr->lock);
-
-  int success = (frptr->count-- == 0);
-
-  if (success) {
-    fibrili_unlock(frptr->lock);
-  }
-
-  return success;
 }
 
 #endif /* end of include guard: FIBRILI_H */

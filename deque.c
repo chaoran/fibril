@@ -63,8 +63,6 @@ frame_t deque_steal(deque_t * deq)
 
   DEBUG_ASSERT(fm.frptr != NULL && fm.stack != NULL);
 
-  sync_lock(fm.frptr->lock);
-
   int count = fm.frptr->count;
   fm.frptr->count = count < 0 ? 1 : count + 1;
 
