@@ -14,12 +14,11 @@ static __thread fibril_t * _restart;
 static __thread fibril_t * volatile _frptr;
 static deque_t ** _deqs;
 static fibril_t * _stop;
-static void * _trampoline;
 
 __attribute__((noreturn)) static
 void execute(frame_t fm)
 {
-  void * rsp = stack_setup(fm.frptr, fm.stack, _trampoline);
+  void * rsp = stack_setup(fm.frptr, fm.stack);
   sync_unlock(fm.frptr->lock);
 
   DEBUG_DUMP(2, "execute:", (fm.frptr, "%p"), (rsp, "%p"));
@@ -61,43 +60,10 @@ void sched_start(int id, int nprocs)
 
   if (id == 0) {
     /** Setup stack. */
-    fibrili_deq.stack = PAGE_ALIGN_DOWN(PARAM_STACK_ADDR);
+    stack_init();
 
     /** Setup deque pointers. */
     _deqs = malloc(sizeof(deque_t * [nprocs]));
-
-    /** Setup trampoline segment. */
-    if (_trampoline == NULL) {
-      _trampoline = &&TRAMPOLINE;
-    } else {
-TRAMPOLINE: __asm__ ("nop" : : : "rax", "rbx", "rcx", "rdx", "rdi", "rsi",
-                "r11", "r12", "r13", "r14", "r15");
-      __asm__ (
-                /** Restore stack pointer. */
-                "mov\t(%%rbp),%%rsp\n\t"
-                /** Restore parent's frame pointer. */
-                "mov\t0x8(%%rbp),%%rcx\n\t"
-                "mov\t%%rcx,(%%rsp)\n\t"
-                /** Restore return address. */
-                "mov\t0x10(%%rbp),%%rcx\n\t"
-                "mov\t%%rcx,0x8(%%rsp)\n\t"
-                /** Update current stack. */
-                "mov\t0x18(%%rbp),%%rcx\n\t"
-                "mov\t%%rcx,%1\n\t"
-                /** Compute stack address. */
-                "lea\t0x20(%%rbp),%%rdi\n\t"
-                "sub\t%0,%%rdi\n\t"
-                /** Free the stack. */
-                "push\t%%rax\n\t"
-                "call\tfree\n\t"
-                "pop\t%%rax\n\t"
-                /** Return to parent. */
-                "pop\t%%rbp\n\t"
-                "ret\n\t"
-                : : "m" (PARAM_STACK_SIZE), "m" (fibrili_deq.stack)
-                : "rax", "rcx", "rdx"
-            );
-    }
   }
 
   sync_barrier(nprocs);
@@ -105,7 +71,6 @@ TRAMPOLINE: __asm__ ("nop" : : : "rax", "rbx", "rcx", "rdx", "rdi", "rsi",
   sync_barrier(nprocs);
 
   DEBUG_DUMP(2, "sched_start:", (id, "%d"), (_deqs[id], "%p"));
-
   schedule(id, nprocs);
 }
 

@@ -1,10 +1,47 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include "safe.h"
+#include "sync.h"
 #include "param.h"
 #include "stack.h"
 
-void * stack_setup(fibril_t * frptr, void * stack, void * trampoline)
+static void * _trampoline;
+
+void stack_init()
+{
+  if (_trampoline == NULL) {
+    fibrili_deq.stack = PAGE_ALIGN_DOWN(PARAM_STACK_ADDR);
+    _trampoline = &&TRAMPOLINE;
+  } else {
+TRAMPOLINE:
+    __asm__ ( /** Restore stack pointer. */
+              "mov\t(%%rbp),%%rsp\n\t"
+              /** Restore parent's frame pointer. */
+              "mov\t0x8(%%rbp),%%rcx\n\t"
+              "mov\t%%rcx,(%%rsp)\n\t"
+              /** Restore return address. */
+              "mov\t0x10(%%rbp),%%rcx\n\t"
+              "mov\t%%rcx,0x8(%%rsp)\n\t"
+              /** Update current stack. */
+              "mov\t0x18(%%rbp),%%rcx\n\t"
+              "mov\t%%rcx,%1\n\t"
+              /** Compute stack address. */
+              "lea\t0x20(%%rbp),%%rdi\n\t"
+              "sub\t%0,%%rdi\n\t"
+              /** Free the stack. */
+              "push\t%%rax\n\t"
+              "call\tfree\n\t"
+              "pop\t%%rax\n\t"
+              /** Return to parent. */
+              "pop\t%%rbp\n\t"
+              "ret\n\t"
+              : : "m" (PARAM_STACK_SIZE), "m" (fibrili_deq.stack)
+              : "rax", "rcx", "rdx"
+    );
+  }
+}
+
+void * stack_setup(fibril_t * frptr, void * stack)
 {
   size_t align = PARAM_PAGE_SIZE;
   size_t size  = PARAM_STACK_SIZE;
@@ -30,10 +67,10 @@ void * stack_setup(fibril_t * frptr, void * stack, void * trampoline)
    */
   void * tmp = rsp;
 
-  *(--rsp) = trampoline;
+  *(--rsp) = _trampoline;
   *(--rsp) = tmp;
 
-  *(btm + 1) = trampoline;
+  *(btm + 1) = _trampoline;
   *(btm)     = tmp;
 
   /** Copy the saved parent's registers to the new stack. */
