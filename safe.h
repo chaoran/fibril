@@ -32,4 +32,9 @@
   SAFE_ASSERT(ret != 0); \
 } while (0)
 
+#define SAFE_RZCALL(call) do { \
+  intptr_t ret = (intptr_t) (call); \
+  SAFE_ASSERT(ret == 0); \
+} while (0)
+
 #endif /* end of include guard: SAFE_H */
