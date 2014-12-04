@@ -20,6 +20,8 @@
 #define SAFE_ASSERT(...)
 #endif
 
+#include <stdint.h>
+
 #define SAFE_NNCALL(call) do { \
   intptr_t ret = (intptr_t) (call); \
   SAFE_ASSERT(ret >= 0); \
