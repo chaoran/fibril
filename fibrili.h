@@ -24,7 +24,9 @@ extern __thread struct _fibrili_deque_t {
 } fibrili_deq;
 
 #define fibrili_fence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
-#define fibrili_lock(l) while (__atomic_test_and_set(&(l), __ATOMIC_ACQUIRE))
+#define fibrili_lock(l) do { \
+  __asm__ ( "pause" : : : "memory" ); \
+} while (__atomic_test_and_set(&(l), __ATOMIC_ACQUIRE))
 #define fibrili_unlock(l) __atomic_clear(&(l), __ATOMIC_RELEASE)
 
 #include "setjmp.h"
