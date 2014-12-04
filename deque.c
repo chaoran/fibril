@@ -57,8 +57,6 @@ struct _fibril_t * deque_steal(deque_t * deq)
   struct _fibril_t * frptr = deq->buff[head];
   DEBUG_ASSERT(frptr != NULL);
 
-  sync_lock(frptr->lock);
-
   int count = frptr->count;
   frptr->count = count < 0 ? 1 : count + 1;
 

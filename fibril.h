@@ -11,7 +11,6 @@ typedef struct _fibril_t fibril_t;
 #define fibril_init(frptr) do { \
   fibril_t * f = (frptr); \
   f->count = -1; \
-  f->lock  = 0; \
 } while (0)
 
 #define fibril_fork(frptr, fn, ret, ...) do { \

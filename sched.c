@@ -19,8 +19,6 @@ void execute(fibril_t * frptr, void ** rsp)
   void ** top = frptr->regs.rsp;
   void ** btm = frptr->regs.rbp;
 
-  sync_unlock(frptr->lock);
-
   /**
    * Store the return address, parent's frame pointer, and the
    * stolen frame's pointer at the bottom of the stack.
@@ -153,21 +151,12 @@ void sched_stop()
 
 void fibrili_yield(fibril_t * frptr)
 {
-  sync_unlock(frptr->lock);
   fibrili_longjmp(_restart, NULL);
 }
 
 void fibrili_resume(fibril_t * frptr)
 {
-  int count;
-
-  sync_lock(frptr->lock);
-  count = frptr->count--;
-
-  DEBUG_DUMP(3, "resume:", (frptr, "%p"), (count, "%d"));
-
-  if (count == 0) {
-    sync_unlock(frptr->lock);
+  if (fibrili_join(frptr)) {
     fibrili_longjmp(frptr, NULL);
   } else {
     fibrili_yield(frptr);
