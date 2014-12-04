@@ -5,7 +5,6 @@ struct _fibril_t {
   int count;
   char lock;
   void * stack;
-  void * retval;
   struct {
     void * rsp;
     void * rbp;
