@@ -22,6 +22,7 @@ extern __thread struct _fibrili_deque_t {
   char lock;
   int  head;
   int  tail;
+  void * stack;
   void * buff[1000];
 } fibrili_deq;
 
