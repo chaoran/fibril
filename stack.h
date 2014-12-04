@@ -3,6 +3,7 @@
 
 #include "fibril.h"
 
+void * stack_setup(fibril_t * frptr, void * stack, void * trampoline);
 void stack_reinstall(fibril_t * frptr);
 void stack_uninstall(fibril_t * frptr);
 

@@ -17,51 +17,13 @@ static fibril_t * _stop;
 static void * _trampoline;
 
 __attribute__((noreturn)) static
-void execute(frame_t fm, void ** rsp)
+void execute(frame_t fm)
 {
-  fibril_t * frptr = fm.frptr;
-  void * stack = fm.stack;
+  void * rsp = stack_setup(fm.frptr, fm.stack, _trampoline);
+  sync_unlock(fm.frptr->lock);
 
-  void ** top = frptr->regs.rsp;
-  void ** btm = frptr->regs.rbp;
-
-  sync_unlock(frptr->lock);
-
-  /**
-   * Store the return address, parent's frame pointer, and the
-   * stolen frame's pointer at the bottom of the stack.
-   */
-  *(--rsp) = stack;
-  *(--rsp) = *(btm + 1);  /** Copy return address. */
-  *(--rsp) = *(btm);      /** Copy caller's base pointer. */
-  *(--rsp) = btm;         /** Copy base pointer. */
-
-  /**
-   * Use the trampoline as return address and the pointer to the saved
-   * variables on the new stack as parent's frame pointer.
-   */
-  void * tmp = rsp;
-
-  *(--rsp) = _trampoline;
-  *(--rsp) = tmp;
-
-  *(btm + 1) = _trampoline;
-  *(btm)     = tmp;
-
-  /** Copy the saved parent's registers to the new stack. */
-  switch (btm - top > 5 ? 5 : btm - top) {
-    case 5: *(--rsp) = *(--btm);
-    case 4: *(--rsp) = *(--btm);
-    case 3: *(--rsp) = *(--btm);
-    case 2: *(--rsp) = *(--btm);
-    case 1: *(--rsp) = *(--btm);
-  }
-
-  /** Adjust the stack pointer to keep correct offset to the frame pointer. */
-  rsp -= btm - top;
-
-  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (rsp, "%p"));
-  fibrili_longjmp(frptr, rsp);
+  DEBUG_DUMP(2, "execute:", (fm.frptr, "%p"), (rsp, "%p"));
+  fibrili_longjmp(fm.frptr, rsp);
 }
 
 static inline
@@ -76,10 +38,6 @@ void schedule(int id, int nprocs)
     stack_uninstall(_frptr);
   }
 
-  void * stack = NULL;
-  posix_memalign(&stack, PARAM_PAGE_SIZE, PARAM_STACK_SIZE);
-  SAFE_ASSERT(stack != NULL && PAGE_ALIGNED(stack));
-
   while (sync_load(_stop) == NULL) {
     int victim = rand() % nprocs;
     if (victim == id) continue;
@@ -88,13 +46,9 @@ void schedule(int id, int nprocs)
     if (fm.frptr == NULL) continue;
 
     DEBUG_DUMP(1, "steal:", (victim, "%d"), (fm.frptr, "%p"), (fm.stack, "%p"));
-    DEBUG_DUMP(3, "install:", (stack, "%p"));
-
-    fibrili_deq.stack = stack;
-    execute(fm, stack + PARAM_STACK_SIZE);
+    execute(fm);
   }
 
-  free(stack);
   sync_barrier(PARAM_NUM_PROCS);
 
   if (id) pthread_exit(NULL);
