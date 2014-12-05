@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include <unistd.h>
+#include <stdlib.h>
 #include <pthread.h>
 #include "debug.h"
 #include "param.h"
@@ -21,6 +22,19 @@ static size_t get_stack_size()
 static int get_num_procs()
 {
   int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+
+  char * str;
+  if ((str = getenv("FIBRIL_NPROCS"))) {
+    int n = atoi(str);
+
+    if (n <= nprocs && n > 0) {
+      nprocs = n;
+    } else {
+      fprintf(stderr, "Invalid FIBRIL_NPROCS (should be 1~%d)\n", nprocs);
+      exit(1);
+    }
+  }
+
   return nprocs;
 }
 

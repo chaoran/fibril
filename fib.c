@@ -20,7 +20,7 @@ int fib(int n)
 
 int main(int argc, const char *argv[])
 {
-  fibril_rt_init(FIBRIL_MAX_PROCS);
+  fibril_rt_init(FIBRIL_NPROCS_ONLN);
 
   int n = 42;
   int m = fib(n);
