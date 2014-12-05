@@ -6,7 +6,7 @@
 typedef struct _fibril_t fibril_t;
 
 #define FIBRIL_SUCCESS 0
-#define FIBRIL_MAX_PROCS -1
+#define FIBRIL_NPROCS_ONLN -1
 
 #define fibril_init(frptr) do { \
   fibril_t * f = (frptr); \
