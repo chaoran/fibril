@@ -14,30 +14,28 @@ void stack_init()
     _trampoline = &&TRAMPOLINE;
   } else {
 TRAMPOLINE:
-    __asm__ ( /** Restore stack pointer. */
-              "mov\t(%%rbp),%%rsp\n\t"
-              /** Restore parent's frame pointer. */
-              "mov\t0x8(%%rbp),%%rcx\n\t"
-              "mov\t%%rcx,(%%rsp)\n\t"
-              /** Restore return address. */
-              "mov\t0x10(%%rbp),%%rcx\n\t"
-              "mov\t%%rcx,0x8(%%rsp)\n\t"
-              /** Update current stack. */
-              "mov\t0x18(%%rbp),%%rcx\n\t"
-              "mov\t%%rcx,%1\n\t"
-              /** Compute stack address. */
-              "lea\t0x20(%%rbp),%%rdi\n\t"
-              "sub\t%0,%%rdi\n\t"
-              /** Free the stack. */
-              "push\t%%rax\n\t"
-              "call\tfree\n\t"
-              "pop\t%%rax\n\t"
-              /** Return to parent. */
+    __asm__ (
+        "mov\t(%%rbp),%%rsp\n\t"
+        "mov\t0x8(%%rbp),%%rcx\n\t"
+        "mov\t%%rcx,(%%rsp)\n\t"
+        "mov\t0x10(%%rbp),%%rcx\n\t"
+        "mov\t%%rcx,0x8(%%rsp)\n\t"
+        "push\t%%rax" : : : "rcx", "memory" );
+
+    __asm__ __volatile__ (
+        "mov\t0x18(%%rbp),%%rcx\n\t"
+        "mov\t%%rcx,%0" : "=m" (fibrili_deq.stack) : : "rcx", "memory" );
+
+    register void ** rbp asm ("rbp");
+    register void *  rdi asm ("rdi");
+
+    rdi = rbp + 4;
+    rdi -= PARAM_STACK_SIZE;
+    free(rdi);
+
+    __asm__ ( "pop\t%%rax\n\t"
               "pop\t%%rbp\n\t"
-              "ret\n\t"
-              : : "m" (PARAM_STACK_SIZE), "m" (fibrili_deq.stack)
-              : "rax", "rcx", "rdx"
-    );
+              "ret" : : : "rax" );
   }
 }
 
