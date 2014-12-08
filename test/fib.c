@@ -25,7 +25,7 @@ int fib(int n)
   fibril_t fr;
   fibril_init(&fr);
 
-  fibril_fork(&fr, fib, x, n - 1);
+  fibril_fork(&fr, &x, fib(n - 1));
   y = fib(n - 2);
 
   fibril_join(&fr);
