@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([Fibril], [0.1], [chaoran@rice.edu])
+AC_INIT([fibril], [0.1], [chaoran@rice.edu])
 AM_INIT_AUTOMAKE([-Wall -Wno-extra-portability -Werror foreign nostdinc])
 LT_PREREQ([2.2])
 LT_INIT
@@ -34,5 +34,6 @@ AC_FUNC_MMAP
 AC_CHECK_FUNCS([munmap])
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+                 test/Makefile])
 AC_OUTPUT
