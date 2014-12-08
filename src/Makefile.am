@@ -1,5 +1,4 @@
 lib_LTLIBRARIES = libfibril.la
-AM_DEFAULT_INCLUDES =
 include_HEADERS = \
 	fibril.h \
 	fibrili.h \
