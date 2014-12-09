@@ -19,7 +19,6 @@ ACX_PTHREAD([LIBS="$PTHREAD_LIBS $LIBS"
              CC="$PTHREAD_CC"])
 
 # Checks for libraries.
-#AC_CHECK_LIB([pthread], [pthread_create])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stddef.h stdint.h stdlib.h unistd.h pthread.h])
