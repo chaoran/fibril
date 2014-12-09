@@ -13,6 +13,10 @@ AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CC
 
+# Checks for command-line.
+FIBRIL_IF_ENABLED([debug], [Build fibril in debugging mode],
+  [AC_DEFINE([FIBRIL_DEBUG], 1, [Fibril debug enabled])])
+
 # Check for pthreads
 ACX_PTHREAD([LIBS="$PTHREAD_LIBS $LIBS"
              CFLAGS="$CFLAGS $PTHREAD_CFLAGS"

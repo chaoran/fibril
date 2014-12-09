@@ -1,6 +1,12 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#if HAVE_CONFIG_H
+#ifdef FIBRIL_DEBUG
+#define ENABLE_DEBUG
+#endif
+#endif
+
 extern __thread int _tid;
 #define DEBUG_TID _tid
 
