@@ -1,11 +1,11 @@
 #include <stdlib.h>
 #include <pthread.h>
+#include "proc.h"
 #include "safe.h"
 #include "sync.h"
 #include "debug.h"
 #include "deque.h"
 #include "param.h"
-#include "sched.h"
 #include "stack.h"
 
 __thread int _tid;
@@ -53,7 +53,7 @@ void schedule(int id, int nprocs)
   else fibrili_longjmp(_stop, NULL);
 }
 
-void sched_start(int id, int nprocs)
+void proc_start(int id, int nprocs)
 {
   _tid = id;
 
@@ -69,11 +69,11 @@ void sched_start(int id, int nprocs)
   _deqs[id] = &fibrili_deq;
   sync_barrier(nprocs);
 
-  DEBUG_DUMP(2, "sched_start:", (id, "%d"), (_deqs[id], "%p"));
+  DEBUG_DUMP(2, "proc_start:", (id, "%d"), (_deqs[id], "%p"));
   schedule(id, nprocs);
 }
 
-void sched_stop()
+void proc_stop()
 {
   fibril_t fr;
   _stop = &fr;

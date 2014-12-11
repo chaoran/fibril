@@ -7,6 +7,6 @@ libfibril_la_SOURCES = \
  deque.c \
  param.c \
  runtime.c \
- sched.c \
+ proc.c \
  stack.c \
  stats.c

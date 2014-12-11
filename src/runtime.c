@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
+#include "proc.h"
 #include "debug.h"
 #include "param.h"
-#include "sched.h"
 #include "fibril.h"
 
 static pthread_t * _procs;
@@ -14,7 +14,7 @@ static void * __main(void * id)
   int tid = (int) (intptr_t) id;
   int nprocs = PARAM_NUM_PROCS;
 
-  sched_start(tid, nprocs);
+  proc_start(tid, nprocs);
   return NULL;
 }
 
@@ -59,7 +59,7 @@ int fibril_rt_init(int nprocs)
 
 int fibril_rt_exit()
 {
-  sched_stop();
+  proc_stop();
 
   int i;
   int nprocs = PARAM_NUM_PROCS;

@@ -3,7 +3,7 @@
 
 AC_PREREQ([2.69])
 AC_INIT([fibril], [0.1], [chaoran@rice.edu])
-AM_INIT_AUTOMAKE([-Wall -Wno-extra-portability -Werror foreign nostdinc])
+AM_INIT_AUTOMAKE([-Wall -Wno-extra-portability -Werror foreign])
 LT_PREREQ([2.2])
 LT_INIT
 AC_CONFIG_MACRO_DIR([m4])
