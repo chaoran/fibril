@@ -2,8 +2,10 @@
 #define DEBUG_H
 
 #if HAVE_CONFIG_H
+#include "config.h"
 #ifdef FIBRIL_DEBUG
 #define ENABLE_DEBUG
+#define DEBUG_LEVEL FIBRIL_DEBUG
 #endif
 #endif
 

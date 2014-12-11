@@ -15,7 +15,10 @@ AC_PROG_CC
 
 # Checks for command-line.
 FIBRIL_IF_ENABLED([debug], [Build fibril in debugging mode],
-  [AC_DEFINE([FIBRIL_DEBUG], 1, [Fibril debug enabled])])
+  [
+   case "${enable_debug}" in 1|2|3) ;; *) enable_debug=0 ;; esac
+   AC_DEFINE_UNQUOTED([FIBRIL_DEBUG], [${enable_debug}], [Fibril debug enabled])
+  ])
 
 # Check for pthreads
 ACX_PTHREAD([LIBS="$PTHREAD_LIBS $LIBS"
