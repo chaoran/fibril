@@ -10,7 +10,10 @@ typedef struct _fibril_t fibril_t;
 
 #define fibril_init(frptr) do { \
   fibril_t * f = (frptr); \
+  register void * rsp asm ("rsp"); \
+  f->lock = 0; \
   f->count = -1; \
+  f->stack.top = rsp; \
 } while (0)
 
 #define _fibril_concat(left, right) left##right
@@ -24,7 +27,7 @@ typedef struct _fibril_t fibril_t;
 
 #define _fibril_fork_1(frptr, call) do { \
   fibril_t * f = (frptr); \
-  if (!fibrili_setjmp(f)) { \
+  if (!fibrili_setjmp(&f->state)) { \
     fibrili_push(f); \
     call; \
     if (!fibrili_pop()) fibrili_resume(f); \
@@ -34,7 +37,7 @@ typedef struct _fibril_t fibril_t;
 #define _fibril_fork_2(frptr, retptr, call) do { \
   fibril_t * f = (frptr); \
   __typeof__(retptr) p = (retptr); \
-  if (!fibrili_setjmp(f)) { \
+  if (!fibrili_setjmp(&f->state)) { \
     fibrili_push(f); \
     *p = call; \
     if (!fibrili_pop()) { \
@@ -47,7 +50,7 @@ typedef struct _fibril_t fibril_t;
 #define fibril_join(frptr) do { \
   fibril_t * f = (frptr); \
   if (f->count == -1 || fibrili_join(f)) break; \
-  if (fibrili_setjmp(f)) break; \
+  if (fibrili_setjmp(&f->state)) break; \
   fibrili_yield(f); \
 } while (0)
 

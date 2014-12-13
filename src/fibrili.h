@@ -1,19 +1,16 @@
 #ifndef FIBRILI_H
 #define FIBRILI_H
 
+#include "setjmp.h"
+
 struct _fibril_t {
+  char lock;
   int count;
   struct {
-    void * rsp;
-    void * rbp;
-    void * rbx;
-    void * r12;
-    void * r13;
-    void * r14;
-    void * r15;
-    void * rip;
-  } regs;
-  void * stack;
+    void * ptr;
+    void * top;
+  } stack;
+  struct _fibrili_state_t state;
 };
 
 extern __thread struct _fibrili_deque_t {
@@ -30,10 +27,7 @@ extern __thread struct _fibrili_deque_t {
 } while (__atomic_test_and_set(&(l), __ATOMIC_ACQUIRE))
 #define fibrili_unlock(l) __atomic_clear(&(l), __ATOMIC_RELEASE)
 
-#include "setjmp.h"
-
-#define fibrili_join(frptr) \
-  (0 == __atomic_fetch_sub(&frptr->count, 1, __ATOMIC_ACQ_REL))
+extern int fibrili_join(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_resume(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_yield(struct _fibril_t * frptr);
 

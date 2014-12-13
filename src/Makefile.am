@@ -5,8 +5,9 @@ include_HEADERS = \
 	setjmp.h
 libfibril_la_SOURCES = \
  deque.c \
+ fibrili.c \
  param.c \
- runtime.c \
  proc.c \
+ runtime.c \
  stack.c \
  stats.c

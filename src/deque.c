@@ -40,10 +40,8 @@ int fibrili_pop(void)
   return 1;
 }
 
-frame_t deque_steal(deque_t * deq)
+struct _fibril_t * deque_steal(deque_t * deq)
 {
-  frame_t fm;
-
   sync_lock(deq->lock);
 
   int head = deq->head++;
@@ -54,19 +52,22 @@ frame_t deque_steal(deque_t * deq)
     deq->head--;
     sync_unlock(deq->lock);
 
-    fm.frptr = NULL;
-    return fm;
+    return NULL;
   }
 
-  fm.frptr = deq->buff[head];
-  fm.stack = deq->stack;
+  struct _fibril_t * frptr = deq->buff[head];
+  DEBUG_ASSERT(frptr != NULL);
 
-  DEBUG_ASSERT(fm.frptr != NULL && fm.stack != NULL);
+  int count = frptr->count;
 
-  int count = fm.frptr->count;
-  fm.frptr->count = count < 0 ? 1 : count + 1;
+  if (count < 0) {
+    frptr->count = 1;
+    frptr->stack.ptr = deq->stack;
+  } else {
+    frptr->count = count + 1;
+  }
 
   sync_unlock(deq->lock);
-  return fm;
+  return frptr;
 }
 
