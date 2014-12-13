@@ -31,14 +31,12 @@ extern int fibrili_join(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_resume(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_yield(struct _fibril_t * frptr);
 
-extern inline
-void fibrili_push(struct _fibril_t * frptr)
+static inline void fibrili_push(struct _fibril_t * frptr)
 {
   fibrili_deq.buff[fibrili_deq.tail++] = frptr;
 }
 
-extern inline
-int fibrili_pop(void)
+static int fibrili_pop(void)
 {
   int tail = fibrili_deq.tail;
 

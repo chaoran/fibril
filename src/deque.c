@@ -5,41 +5,6 @@
 
 __thread deque_t fibrili_deq;
 
-void fibrili_push(struct _fibril_t * frptr)
-{
-  fibrili_deq.buff[fibrili_deq.tail++] = frptr;
-}
-
-int fibrili_pop(void)
-{
-  int tail = fibrili_deq.tail;
-
-  if (tail == 0) return 0;
-
-  fibrili_deq.tail = --tail;
-
-  fibrili_fence();
-
-  if (fibrili_deq.head > tail) {
-    fibrili_deq.tail = tail + 1;
-
-    fibrili_lock(fibrili_deq.lock);
-
-    if (fibrili_deq.head > tail) {
-      fibrili_deq.head = 0;
-      fibrili_deq.tail = 0;
-
-      fibrili_unlock(fibrili_deq.lock);
-      return 0;
-    }
-
-    fibrili_deq.tail = tail;
-    fibrili_unlock(fibrili_deq.lock);
-  }
-
-  return 1;
-}
-
 struct _fibril_t * deque_steal(deque_t * deq)
 {
   sync_lock(deq->lock);
