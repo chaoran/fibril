@@ -11,6 +11,6 @@ extern int PARAM_NUM_PROCS;
 #define PAGE_ALIGN_DOWN(x) ((void *) ((size_t) (x) & ~(PARAM_PAGE_SIZE - 1)))
 #define PAGE_ALIGNED(x) (0 == ((size_t) (x) & (PARAM_PAGE_SIZE - 1)))
 
-extern void param_init(int nprocs);
+extern int param_init(int nprocs);
 
 #endif /* end of include guard: PARAM_H */

@@ -20,14 +20,7 @@ static void * __main(void * id)
 
 int fibril_rt_init(int nprocs)
 {
-  param_init(nprocs);
-
-  if ((unsigned) nprocs >= PARAM_NUM_PROCS) {
-    nprocs = PARAM_NUM_PROCS;
-  } else {
-    PARAM_NUM_PROCS = nprocs;
-  }
-
+  nprocs = param_init(nprocs);
   DEBUG_DUMP(2, "fibril_rt_init:", (nprocs, "%d"));
 
   size_t stacksize = PARAM_STACK_SIZE;

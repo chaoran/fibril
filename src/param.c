@@ -50,7 +50,7 @@ static int get_num_procs(int n)
   return nprocs;
 }
 
-void param_init(int nprocs)
+int param_init(int nprocs)
 {
   PARAM_NUM_PROCS = get_num_procs(nprocs);
   DEBUG_DUMP(2, "init:", (PARAM_NUM_PROCS, "%d"));
@@ -61,5 +61,7 @@ void param_init(int nprocs)
   get_stack_size(&PARAM_STACK_ADDR, &PARAM_STACK_SIZE);
   DEBUG_DUMP(2, "init:", (PARAM_STACK_ADDR, "%p"));
   DEBUG_DUMP(2, "init:", (PARAM_STACK_SIZE, "0x%lx"));
+
+  return PARAM_NUM_PROCS;
 }
 
