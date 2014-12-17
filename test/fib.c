@@ -15,8 +15,7 @@ static int fib_fast(int n)
   return z;
 }
 
-__attribute__((optimize("-fno-omit-frame-pointer")))
-int fib(int n)
+fibril int fib(int n)
 {
   if (n < 2) return n;
 

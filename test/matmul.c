@@ -73,8 +73,7 @@ void multiply(float * a, int ai, int aj, float * b, int bi, int bj,
   c[ci + 1][cj + 1] += s11;
 }
 
-__attribute__((optimize("-fno-omit-frame-pointer")))
-void compute(float * a, int ai, int aj, float * b, int bi, int bj,
+fibril void compute(float * a, int ai, int aj, float * b, int bi, int bj,
     float ** c, int ci, int cj, int n)
 {
   if (n == 2) {

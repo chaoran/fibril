@@ -19,6 +19,8 @@ typedef struct _fibril_t fibril_t;
 
 #include "fibrili.h"
 
+#define fibril __attribute__((optimize("-fno-omit-frame-pointer")))
+
 #define _fibril_fork_1(frptr, call) do { \
   fibril_t * f = (frptr); \
   if (!fibrili_setjmp(&f->state)) { \
@@ -61,10 +63,14 @@ extern int fibril_rt_exit();
 
 #else /* #ifdef FIBRIL_SERIAL */
 
+#define fibril
+
 #define _fibril_fork_1(frptr, call) (call)
 #define _fibril_fork_2(frptr, retptr, call) (*(retptr) = call)
+
 #define fibril_init(frptr)
 #define fibril_join(frptr)
+
 #define fibril_rt_init(nprocs)
 #define fibril_rt_exit()
 
