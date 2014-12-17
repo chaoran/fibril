@@ -1,20 +1,10 @@
 #ifndef FIBRIL_H
 #define FIBRIL_H
 
-#include "fibrili.h"
-
 typedef struct _fibril_t fibril_t;
 
 #define FIBRIL_SUCCESS 0
 #define FIBRIL_NPROCS_ONLN -1
-
-#define fibril_init(frptr) do { \
-  fibril_t * f = (frptr); \
-  register void * rsp asm ("rsp"); \
-  f->lock = 0; \
-  f->count = -1; \
-  f->stack.top = rsp; \
-} while (0)
 
 #define _fibril_concat(left, right) left##right
 #define _fibril_nth(_1, _2, N, ...) N
@@ -24,6 +14,10 @@ typedef struct _fibril_t fibril_t;
 
 #define _fibril_fork_(n, frptr, ...) \
   _fibril_concat(_fibril_fork_, n)(frptr, __VA_ARGS__)
+
+#ifndef FIBRIL_SERIAL
+
+#include "fibrili.h"
 
 #define _fibril_fork_1(frptr, call) do { \
   fibril_t * f = (frptr); \
@@ -47,6 +41,14 @@ typedef struct _fibril_t fibril_t;
   } \
 } while (0)
 
+#define fibril_init(frptr) do { \
+  fibril_t * f = (frptr); \
+  register void * rsp asm ("rsp"); \
+  f->lock = 0; \
+  f->count = -1; \
+  f->stack.top = rsp; \
+} while (0)
+
 #define fibril_join(frptr) do { \
   fibril_t * f = (frptr); \
   if (f->count == -1 || fibrili_join(f)) break; \
@@ -56,5 +58,16 @@ typedef struct _fibril_t fibril_t;
 
 extern int fibril_rt_init(int nprocs);
 extern int fibril_rt_exit();
+
+#else /* #ifdef FIBRIL_SERIAL */
+
+#define _fibril_fork_1(frptr, call) (call)
+#define _fibril_fork_2(frptr, retptr, call) (*(retptr) = call)
+#define fibril_init(frptr)
+#define fibril_join(frptr)
+#define fibril_rt_init(nprocs)
+#define fibril_rt_exit()
+
+#endif /* end of #ifndef FIBRIL_SERIAL */
 
 #endif /* end of include guard: FIBRIL_H */
