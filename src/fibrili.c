@@ -28,7 +28,7 @@ int fibrili_join(fibril_t * frptr)
 {
   if (!join(frptr)) return 0;
 
-  DEBUG_ASSERT(fibrili_deq.stack != frptr->stack.top);
+  DEBUG_ASSERT(fibrili_deq.stack != frptr->stack.ptr);
 
   /** Move <b>this</b> frame to the original stack. */
   void ** top = frptr->stack.top;
