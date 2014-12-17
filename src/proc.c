@@ -19,8 +19,6 @@ void execute(fibril_t * frptr)
 {
   void * top = stack_setup(frptr);
   sync_unlock(frptr->lock);
-
-  DEBUG_DUMP(2, "execute:", (frptr, "%p"), (top, "%p"));
   fibrili_longjmp(&frptr->state, top);
 }
 

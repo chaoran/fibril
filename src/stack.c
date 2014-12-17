@@ -13,6 +13,8 @@ void * stack_setup(fibril_t * frptr)
   SAFE_ASSERT(fibrili_deq.stack != NULL && PAGE_ALIGNED(fibrili_deq.stack));
 
   void ** rsp = fibrili_deq.stack + size;
+
+  DEBUG_DUMP(3, "stack:", (fibrili_deq.stack, "%p"), (rsp, "%p"));
   return rsp;
 }
 
@@ -24,7 +26,7 @@ void stack_uninstall(fibril_t * frptr)
   void * top  = frptr->stack.top;
   size_t size = PAGE_ALIGN_DOWN(top) - addr;
 
-  DEBUG_DUMP(3, "munmap:", (addr, "%p"), (size, "0x%lx"));
+  DEBUG_DUMP(3, "munmap:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
   SAFE_NNCALL(munmap(addr, size));
 }
@@ -38,7 +40,7 @@ void stack_reinstall(fibril_t * frptr)
   void * top  = frptr->stack.top;
   size_t size = PAGE_ALIGN_DOWN(top) - addr;
 
-  DEBUG_DUMP(3, "mmap:", (addr, "%p"), (size, "0x%lx"));
+  DEBUG_DUMP(3, "mmap:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
   SAFE_NNCALL(mmap(addr, size, prot, flag, -1, 0));
 }
