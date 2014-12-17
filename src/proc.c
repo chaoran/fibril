@@ -96,6 +96,7 @@ void proc_stop()
 
   if (_tid != 0) {
     fibril_init(&fr);
+    sync_lock(fr.lock);
 
     if (0 == fibrili_setjmp(&fr.state)) {
       fibrili_yield(_stop);
