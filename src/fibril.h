@@ -4,6 +4,15 @@
 typedef struct _fibril_t fibril_t;
 
 #define FIBRIL_SUCCESS 0
+
+/**
+ * These are special arguments to fibril_rt_init().
+ * FIBRIL_NPROCS tells the runtime to fetch the number of processors
+ * from the environment variable FIBRIL_NPROCS (getenv(FIBRIL_NPROCS)).
+ * FIBRIL_NPROCS_ONLN tells the runtime to use all available processors
+ * in the system (sysconf(_SC_NPROCESSORS_ONLN)).
+ */
+#define FIBRIL_NPROCS 0
 #define FIBRIL_NPROCS_ONLN -1
 
 #define _fibril_concat(left, right) left##right
@@ -15,6 +24,9 @@ typedef struct _fibril_t fibril_t;
 #define _fibril_fork_(n, frptr, ...) \
   _fibril_concat(_fibril_fork_, n)(frptr, __VA_ARGS__)
 
+/**
+ * Compile with -DFIBRIL_SERIAL to get a serial version of a fibril program.
+ */
 #ifndef FIBRIL_SERIAL
 
 #include <fibril/fibrili.h>

@@ -20,6 +20,8 @@ static void * __main(void * id)
 
 int fibril_rt_init(int nprocs)
 {
+  param_init(nprocs);
+
   if ((unsigned) nprocs >= PARAM_NUM_PROCS) {
     nprocs = PARAM_NUM_PROCS;
   } else {

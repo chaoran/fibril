@@ -2,8 +2,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include "debug.h"
+#include "safe.h"
 #include "param.h"
+#include "fibril.h"
 
 size_t PARAM_PAGE_SIZE;
 void * PARAM_STACK_ADDR;
@@ -24,35 +25,41 @@ static void get_stack_size(void ** addr, size_t * size)
   pthread_attr_getstack(&attr, addr, size);
 }
 
-static int get_num_procs()
+static int get_num_procs(int n)
 {
-  int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+  int nprocs;
+  int nponln = sysconf(_SC_NPROCESSORS_ONLN);
+  char * env;
 
-  char * str;
-  if ((str = getenv("FIBRIL_NPROCS"))) {
-    int n = atoi(str);
-
-    if (n <= nprocs && n > 0) {
+  switch (n) {
+    case FIBRIL_NPROCS_ONLN:
+      nprocs = nponln;
+      break;
+    case FIBRIL_NPROCS:
+      if ((env = getenv("FIBRIL_NPROCS"))) {
+        nprocs = atoi(env);
+      } else {
+        nprocs = -1;
+      }
+      break;
+    default:
       nprocs = n;
-    } else {
-      fprintf(stderr, "Invalid FIBRIL_NPROCS (should be 1~%d)\n", nprocs);
-      exit(1);
-    }
   }
 
+  SAFE_ASSERT(nprocs > 0 && nprocs <= nponln);
   return nprocs;
 }
 
-__attribute__((constructor)) void init(void)
+void param_init(int nprocs)
 {
+  PARAM_NUM_PROCS = get_num_procs(nprocs);
+  DEBUG_DUMP(2, "init:", (PARAM_NUM_PROCS, "%d"));
+
   PARAM_PAGE_SIZE = get_page_size();
   DEBUG_DUMP(2, "init:", (PARAM_PAGE_SIZE, "0x%lx"));
 
   get_stack_size(&PARAM_STACK_ADDR, &PARAM_STACK_SIZE);
   DEBUG_DUMP(2, "init:", (PARAM_STACK_ADDR, "%p"));
   DEBUG_DUMP(2, "init:", (PARAM_STACK_SIZE, "0x%lx"));
-
-  PARAM_NUM_PROCS = get_num_procs();
-  DEBUG_DUMP(2, "init:", (PARAM_NUM_PROCS, "%d"));
 }
 
