@@ -1,7 +1,7 @@
 #ifndef FIBRILI_H
 #define FIBRILI_H
 
-#include "setjmp.h"
+#include <fibril/setjmp.h>
 
 struct _fibril_t {
   char lock;

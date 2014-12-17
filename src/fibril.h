@@ -17,7 +17,7 @@ typedef struct _fibril_t fibril_t;
 
 #ifndef FIBRIL_SERIAL
 
-#include "fibrili.h"
+#include <fibril/fibrili.h>
 
 #define fibril __attribute__((optimize("-fno-omit-frame-pointer")))
 
