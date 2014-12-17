@@ -61,7 +61,11 @@ int main(int argc, const char *argv[])
   int * a = malloc(sizeof(int [n]));
 
   init(a, n);
+
+  fibril_rt_init(FIBRIL_NPROCS_ONLN);
   quicksort(a, n);
+  fibril_rt_exit();
+
   return !verify(a, n);
 }
 
