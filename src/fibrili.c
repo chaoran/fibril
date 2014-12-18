@@ -31,17 +31,20 @@ int fibrili_join(fibril_t * frptr)
   DEBUG_ASSERT(fibrili_deq.stack != frptr->stack.ptr);
 
   /** Move <b>this</b> frame to the original stack. */
-  void ** top = frptr->stack.top;
-  void ** rbp = __builtin_frame_address(0) + sizeof(void *);
+  void ** rsp = frptr->stack.top;
+  void ** rbp = rsp - 2;
+  void ** src = __builtin_frame_address(0) + sizeof(void *);
 
-  register void ** rsp asm ("rsp");
+  register void ** top asm ("rsp");
 
-  while (rbp >= rsp) {
-    *(--top) = *(rbp--);
+  while (src >= top) {
+    *(--rsp) = *(src--);
   }
 
   /** Restore the stack pointer. */
-  __asm__ ( "mov\t%0,%%rsp" : : "g" (top) );
+  __asm__ ( "mov\t%0,%%rbp\n\t"
+            "mov\t%1,%%rsp"
+            : : "g" (rbp), "g" (rsp) );
 
   free(fibrili_deq.stack);
   fibrili_deq.stack = frptr->stack.ptr;
