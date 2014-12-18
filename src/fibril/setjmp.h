@@ -29,7 +29,11 @@ int fibrili_setjmp(fibrili_state_t state)
             "mov\t%%rax,0x30(%1)\n\t"
             "xor\t%0,%0\n\t"
             : "=r" (ret) : "r" (ptr)
-            : "rdx","rsi","rdi","r8","r9","r10","r11", "memory" );
+            : "rdx","rsi","rdi","r8","r9","r10","r11",
+            "xmm0", "xmm1", "xmm2", "xmm3", "xmm4",
+            "xmm5", "xmm6", "xmm7", "xmm8", "xmm9",
+            "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15",
+            "cc", "memory" );
 
   return ret;
 }
