@@ -14,6 +14,9 @@ void * stack_setup(fibril_t * frptr)
 
   void ** rsp = fibrili_deq.stack + size;
 
+  /** Reserve 128 byte at the bottom. */
+  rsp -= 16;
+
   DEBUG_DUMP(3, "stack:", (fibrili_deq.stack, "%p"), (rsp, "%p"));
   return rsp;
 }
