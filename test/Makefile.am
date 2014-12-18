@@ -4,6 +4,7 @@ LIBS += -l$(PACKAGE)
 
 check_PROGRAMS = \
                  fib \
+                 integrate \
                  matmul \
                  quicksort
 
