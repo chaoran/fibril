@@ -14,12 +14,29 @@ static __thread fibril_t * _frptr;
 static deque_t ** _deqs;
 static fibril_t * _stop;
 
+void proc_resume(const fibrili_state_t state, void * rsp)
+{
+  register void * ret asm ("eax");
+
+  __asm__ __volatile__ ( "mov\t %2,%%rsp\n\t"
+            "mov\t 0x0 (%1),%%rbp\n\t"
+            "mov\t 0x8 (%1),%%rbx\n\t"
+            "mov\t 0x10(%1),%%r12\n\t"
+            "mov\t 0x18(%1),%%r13\n\t"
+            "mov\t 0x20(%1),%%r14\n\t"
+            "mov\t 0x28(%1),%%r15\n\t"
+            "mov\t $0x1,%0\n\t"
+            "jmp\t*0x30(%1)"
+            : "=&r" (ret) : "r" (state), "r" (rsp) );
+  __builtin_unreachable();
+}
+
 __attribute__((noreturn)) static
 void execute(fibril_t * frptr)
 {
   void * top = stack_setup(frptr);
   sync_unlock(frptr->lock);
-  fibrili_longjmp(&frptr->state, top);
+  proc_resume(&frptr->state, top);
 }
 
 static void yield(fibril_t * frptr)
@@ -65,7 +82,7 @@ static void schedule(int id, int nprocs)
   sync_barrier(PARAM_NUM_PROCS);
 
   if (id) pthread_exit(NULL);
-  else fibrili_longjmp(&_stop->state, _stop->stack.top);
+  else proc_resume(&_stop->state, _stop->stack.top);
 }
 
 void proc_start(int id, int nprocs)
@@ -111,6 +128,6 @@ void proc_stop()
 void fibrili_yield(fibril_t * frptr)
 {
   _frptr = frptr;
-  fibrili_longjmp(&_restart->state, _restart->stack.top);
+  proc_resume(&_restart->state, _restart->stack.top);
 }
 

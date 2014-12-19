@@ -1,7 +1,15 @@
 #ifndef FIBRILI_H
 #define FIBRILI_H
 
-#include <fibril/setjmp.h>
+typedef struct _fibrili_state_t {
+  void * rbp;
+  void * rbx;
+  void * r12;
+  void * r13;
+  void * r14;
+  void * r15;
+  void * rip;
+} * fibrili_state_t;
 
 struct _fibril_t {
   char lock;
@@ -31,12 +39,14 @@ extern int fibrili_join(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_resume(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern void fibrili_yield(struct _fibril_t * frptr);
 
-static inline void fibrili_push(struct _fibril_t * frptr)
+__attribute__((hot)) static inline
+void fibrili_push(struct _fibril_t * frptr)
 {
   fibrili_deq.buff[fibrili_deq.tail++] = frptr;
 }
 
-static int fibrili_pop(void)
+__attribute__((hot)) static
+int fibrili_pop(void)
 {
   int tail = fibrili_deq.tail;
 
@@ -64,6 +74,24 @@ static int fibrili_pop(void)
   }
 
   return 1;
+}
+
+__attribute__((noinline, hot)) static
+int fibrili_setjmp(fibrili_state_t state)
+{
+  register int ret asm ("eax");
+  void * rip = __builtin_return_address(0);
+
+  __asm__ ( "mov\t%%rbp,0x0(%1)\n\t"
+            "mov\t%%rbx,0x8(%1)\n\t"
+            "mov\t%%r12,0x10(%1)\n\t"
+            "mov\t%%r13,0x18(%1)\n\t"
+            "mov\t%%r14,0x20(%1)\n\t"
+            "mov\t%%r15,0x28(%1)\n\t"
+            "mov\t%2,0x30(%1)\n\t"
+            "xor\t%0,%0\n\t"
+            : "=r" (ret), "+r" (state) : "r" (rip) );
+  return ret;
 }
 
 #endif /* end of include guard: FIBRILI_H */

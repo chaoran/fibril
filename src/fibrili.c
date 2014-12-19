@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include "proc.h"
 #include "sync.h"
 #include "debug.h"
 #include "stack.h"
@@ -55,7 +56,7 @@ void fibrili_resume(fibril_t * frptr)
 {
   if (join(frptr)) {
     fibrili_deq.stack = frptr->stack.ptr;
-    fibrili_longjmp(&frptr->state, frptr->stack.top);
+    proc_resume(&frptr->state, frptr->stack.top);
   } else {
     fibrili_yield(frptr);
   }

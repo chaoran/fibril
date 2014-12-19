@@ -20,14 +20,14 @@ fibril int fib(int n)
   if (n < 2) return n;
 
   int x, y;
-
   fibril_t fr;
   fibril_init(&fr);
 
-  fibril_fork(&fr, &x, fib(n - 1));
-  y = fib(n - 2);
+  fibril_fork(&fr, x, fib, (n - 1));
 
+  y = fib(n - 2);
   fibril_join(&fr);
+
   return x + y;
 }
 

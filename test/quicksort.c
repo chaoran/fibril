@@ -27,7 +27,7 @@ fibril void quicksort(int * a, size_t n)
   fibril_t fr;
   fibril_init(&fr);
 
-  fibril_fork(&fr, quicksort(a, right - a + 1));
+  fibril_fork(&fr, quicksort, (a, right - a + 1));
   quicksort(left, a + n - left);
 
   fibril_join(&fr);

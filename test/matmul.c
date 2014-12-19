@@ -84,9 +84,9 @@ fibril void compute(float * a, int ai, int aj, float * b, int bi, int bj,
     fibril_t fr;
     fibril_init(&fr);
 
-    fibril_fork(&fr, compute00(a, ai, aj, b, bi, bj, c, ci, cj, h));
-    fibril_fork(&fr, compute10(a, ai, aj, b, bi, bj, c, ci, cj, h));
-    fibril_fork(&fr, compute01(a, ai, aj, b, bi, bj, c, ci, cj, h));
+    fibril_fork(&fr, compute00, (a, ai, aj, b, bi, bj, c, ci, cj, h));
+    fibril_fork(&fr, compute10, (a, ai, aj, b, bi, bj, c, ci, cj, h));
+    fibril_fork(&fr, compute01, (a, ai, aj, b, bi, bj, c, ci, cj, h));
     compute11(a, ai, aj, b, bi, bj, c, ci, cj, h);
 
     fibril_join(&fr);
