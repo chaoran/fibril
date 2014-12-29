@@ -19,7 +19,7 @@
 #define _fibrili_fork_(n, ...) _fibrili_concat(_fibrili_fork_, n)(__VA_ARGS__)
 
 #define _fibrili_fork_3(frptr, fn, as) do { \
-  __attribute__((noinline, optimize(3), optimize("-fomit-frame-pointer"))) \
+  __attribute__((noinline, hot, optimize(3), optimize("-fomit-frame-pointer")))\
   void _fibrili_##fn##_fork(_fibrili_defs as fibril_t * f) { \
     fibrili_push(f); \
     fn(_fibrili_args as); \
@@ -29,7 +29,7 @@
 } while (0)
 
 #define _fibrili_fork_4(frptr, rt, fn, as) do { \
-  __attribute__((noinline, optimize(3), optimize("-fomit-frame-pointer"))) \
+  __attribute__((noinline, hot, optimize(3), optimize("-fomit-frame-pointer")))\
   void _fibrili_##fn##_fork(_fibrili_defs as fibril_t * f, __typeof__(&rt) p) {\
     fibrili_push(f); \
     *p = fn(_fibrili_args as); \
