@@ -7,7 +7,10 @@ __attribute__((noreturn)) extern
 void proc_restart(fibril_t * frptr);
 
 __attribute__((noreturn)) extern
-void proc_resume(const fibrili_state_t state, void * rsp);
+void proc_resume(const fibril_t * frptr, void * rsp);
+
+__attribute__((noreturn)) extern
+void proc_yield(fibril_t * frptr);
 
 void proc_start(int id, int nprocs);
 void proc_stop (void);

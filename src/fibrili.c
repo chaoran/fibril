@@ -56,9 +56,9 @@ void fibrili_resume(fibril_t * frptr)
 {
   if (join(frptr)) {
     fibrili_deq.stack = frptr->stack.ptr;
-    proc_resume(&frptr->state, frptr->stack.top);
+    proc_resume(frptr, frptr->stack.top);
   } else {
-    fibrili_yield(frptr);
+    proc_yield(frptr);
   }
 }
 

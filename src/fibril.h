@@ -20,16 +20,18 @@ typedef struct _fibril_t fibril_t;
  */
 #ifndef FIBRIL_SERIAL
 
-#define fibril __attribute__((optimize("-fno-omit-frame-pointer")))
+#define fibril __attribute__((optimize("no-omit-frame-pointer")))
 
 #include <fibril/fork.h>
 #define fibril_fork fibrili_fork
 
 #define fibril_init(frptr) do { \
   fibril_t * f = (frptr); \
+  register void * rbp asm ("rbp"); \
   register void * rsp asm ("rsp"); \
   f->lock = 0; \
   f->count = -1; \
+  f->stack.btm = rbp; \
   f->stack.top = rsp; \
 } while (0)
 
@@ -38,8 +40,7 @@ typedef struct _fibril_t fibril_t;
 #define fibril_join(frptr) do { \
   fibril_t * f = (frptr); \
   if (f->count == -1 || fibrili_join(f)) break; \
-  if (fibrili_setjmp(&f->state)) break; \
-  fibrili_yield(f); \
+  fibrili_membar(fibrili_yield(f)); \
 } while (0)
 
 extern int fibril_rt_init(int nprocs);
