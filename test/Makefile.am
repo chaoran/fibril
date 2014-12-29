@@ -1,8 +1,9 @@
 AM_CPPFLAGS = -I$(includedir)
 AM_LDFLAGS = -L$(libdir)
-LIBS += -l$(PACKAGE)
+LIBS += -l$(PACKAGE) -lm
 
 check_PROGRAMS = \
+                 fft \
                  fib \
                  integrate \
                  matmul \
