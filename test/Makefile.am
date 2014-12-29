@@ -1,6 +1,5 @@
 AM_CPPFLAGS = -I$(includedir)
-AM_LDFLAGS = -L$(libdir)
-LIBS += -l$(PACKAGE) -lm
+AM_LDFLAGS = -L$(libdir) -l$(PACKAGE)
 
 check_PROGRAMS = \
                  fft \
@@ -9,5 +8,7 @@ check_PROGRAMS = \
                  matmul \
                  nqueens \
                  quicksort
+
+fft_LDADD = -lm
 
 TESTS = $(check_PROGRAMS)
