@@ -38,6 +38,6 @@ int main(int argc, const char *argv[])
   int m = fib(n);
 
   fibril_rt_exit();
-  return (m = fib_fast(n) ? 0 : 1);
+  return (m == fib_fast(n) ? 0 : 1);
 }
 
