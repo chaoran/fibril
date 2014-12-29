@@ -1,4 +1,8 @@
-#include <fibril.h>
+#include <stdio.h>
+#include "test.h"
+
+int n = 42;
+int m;
 
 static int fib_fast(int n)
 {
@@ -31,13 +35,16 @@ fibril int fib(int n)
   return x + y;
 }
 
-int main(int argc, const char *argv[])
+int verify()
 {
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
-  int n = 42;
-  int m = fib(n);
+  int expect = fib_fast(n);
+  printf("fib(%d)=%d (expected %d)\n", n, m, expect);
+  return (expect != m);
+}
 
-  fibril_rt_exit();
-  return (m == fib_fast(n) ? 0 : 1);
+void init() {};
+
+void test() {
+  m = fib(n);
 }
 

@@ -20,10 +20,10 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fibril.h>
+#include "test.h"
 #include "fft.h"
 
-static int n;
+int n = (1 << 14);
 static COMPLEX *in, *out;
 static const REAL pi = 3.1415926535897932384626434;
 
@@ -284,7 +284,6 @@ static void fft_alt(int n, COMPLEX * in, COMPLEX * out)
 
 void init()
 {
-  n = (1 << 12);
   out = (COMPLEX*) malloc(n * sizeof(COMPLEX));
   in  = (COMPLEX*) malloc(n * sizeof(COMPLEX));
 
@@ -330,22 +329,13 @@ int verify(void)
     if (a > error) error = a;
   }
 
-  if (error > 1e-3) {
+  free(expect);
+
+  if (error > 2e-3) {
     printf("n=%d error=%e\n", n, error);
-    return 0;
-  } else {
     return 1;
+  } else {
+    return 0;
   }
 }
 
-int main(int argc, char *argv[])
-{
-  init();
-
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
-  test();
-  fibril_rt_exit();
-
-  return !verify();
-  return 0;
-}

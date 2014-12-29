@@ -1,49 +1,45 @@
+#include <stdio.h>
 #include <stdlib.h>
-#include <fibril.h>
+#include "test.h"
+
+int n = 1024;
+
+static float *  a;
+static float *  b;
+static float ** c;
+
+fibril static void compute(float *, int, int, float *, int, int,
+    float **, int, int, int);
 
 static void compute00(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n);
-static void compute01(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n);
-static void compute10(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n);
-static void compute11(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n);
-
-void initialize(float * a, float * b, float ** c, int n)
+    float ** c, int ci, int cj, int n)
 {
-  int i, j;
-
-  for (i = 0; i < n * n; ++i) {
-    a[i] = 1.0F;
-  }
-
-  for (i = 0; i < n * n; ++i) {
-    b[i] = 1.0F;
-  }
-
-  for (i = 0; i < n; ++i) {
-    for (j = 0; j < n; ++j) {
-      c[i][j] = 0;
-    }
-  }
+  compute(a, ai, aj,     b, bi,     bj, c, ci, cj, n);
+  compute(a, ai, aj + n, b, bi + n, bj, c, ci, cj, n);
 }
 
-int verify(float ** c, int n) {
-  int i, j;
-
-  for (i = 0; i < n; ++i) {
-    for (j = 0; j < n; j++) {
-      if (c[i][j] != n) {
-        return 0;
-      }
-    }
-  }
-
-  return 1;
+static void compute01(float * a, int ai, int aj, float * b, int bi, int bj,
+    float ** c, int ci, int cj, int n)
+{
+  compute(a, ai, aj,     b, bi,     bj + n, c, ci, cj + n, n);
+  compute(a, ai, aj + n, b, bi + n, bj + n, c, ci, cj + n, n);
 }
 
-void multiply(float * a, int ai, int aj, float * b, int bi, int bj,
+static void compute10(float * a, int ai, int aj, float * b, int bi, int bj,
+    float ** c, int ci, int cj, int n)
+{
+  compute(a, ai + n, aj,     b, bi,     bj, c, ci + n, cj, n);
+  compute(a, ai + n, aj + n, b, bi + n, bj, c, ci + n, cj, n);
+}
+
+static void compute11(float * a, int ai, int aj, float * b, int bi, int bj,
+    float ** c, int ci, int cj, int n)
+{
+  compute(a, ai + n, aj,     b, bi,     bj + n, c, ci + n, cj + n, n);
+  compute(a, ai + n, aj + n, b, bi + n, bj + n, c, ci + n, cj + n, n);
+}
+
+static void multiply(float * a, int ai, int aj, float * b, int bi, int bj,
     float ** c, int ci, int cj)
 {
   int a0 = ai;
@@ -73,7 +69,7 @@ void multiply(float * a, int ai, int aj, float * b, int bi, int bj,
   c[ci + 1][cj + 1] += s11;
 }
 
-fibril void compute(float * a, int ai, int aj, float * b, int bi, int bj,
+fibril static void compute(float * a, int ai, int aj, float * b, int bi, int bj,
     float ** c, int ci, int cj, int n)
 {
   if (n == 2) {
@@ -93,52 +89,42 @@ fibril void compute(float * a, int ai, int aj, float * b, int bi, int bj,
   }
 }
 
-void compute00(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n)
+void init()
 {
-  compute(a, ai, aj,     b, bi,     bj, c, ci, cj, n);
-  compute(a, ai, aj + n, b, bi + n, bj, c, ci, cj, n);
-}
+  a = malloc(sizeof(float [n * n]));
+  b = malloc(sizeof(float [n * n]));
+  c = malloc(sizeof(float * [n]));
 
-void compute01(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n)
-{
-  compute(a, ai, aj,     b, bi,     bj + n, c, ci, cj + n, n);
-  compute(a, ai, aj + n, b, bi + n, bj + n, c, ci, cj + n, n);
-}
-
-void compute10(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n)
-{
-  compute(a, ai + n, aj,     b, bi,     bj, c, ci + n, cj, n);
-  compute(a, ai + n, aj + n, b, bi + n, bj, c, ci + n, cj, n);
-}
-
-void compute11(float * a, int ai, int aj, float * b, int bi, int bj,
-    float ** c, int ci, int cj, int n)
-{
-  compute(a, ai + n, aj,     b, bi,     bj + n, c, ci + n, cj + n, n);
-  compute(a, ai + n, aj + n, b, bi + n, bj + n, c, ci + n, cj + n, n);
-}
-
-int main(int argc, const char *argv[])
-{
-  int n = 1024;
-  float * a = malloc(sizeof(float [n][n]));
-  float * b = malloc(sizeof(float [n][n]));
-  float ** c = malloc(sizeof(float * [n]));
-
-  int i;
+  int i, j;
   for (i = 0; i < n; ++i) {
     c[i] = malloc(sizeof(float [n]));
   }
 
-  initialize(a, b, c, n);
+  for (i = 0; i < n * n; ++i) {
+    a[i] = 1.0F;
+  }
 
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
-  compute(a, 0, 0, b, 0, 0, c, 0, 0, n);
-  fibril_rt_exit();
-
-  return verify(c, n) ? 0 : 1;
+  for (i = 0; i < n * n; ++i) {
+    b[i] = 1.0F;
+  }
 }
 
+void test()
+{
+  compute(a, 0, 0, b, 0, 0, c, 0, 0, n);
+}
+
+int verify() {
+  int i, j;
+
+  for (i = 0; i < n; ++i) {
+    for (j = 0; j < n; j++) {
+      if (c[i][j] != n) {
+        printf("c[%d][%d]=%f (expected %f)\n", i, j, c[i][j], n);
+        return 1;
+      }
+    }
+  }
+
+  return 0;
+}

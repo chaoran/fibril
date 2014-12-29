@@ -1,7 +1,8 @@
 #include <stdio.h>
-#include <fibril.h>
+#include "test.h"
 
-static int n, m;
+int n = 14;
+int m;
 
 fibril static int nqueens(int * a, int n, int d)
 {
@@ -63,16 +64,5 @@ int verify()
 
   printf("nqueens(%d)=%d (expected %d)\n", n, m, res[n - 1]);
   return (m != res[n - 1]);
-}
-
-int main(int argc, const char *argv[])
-{
-  init();
-
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
-  test();
-  fibril_rt_exit();
-
-  return verify();
 }
 
