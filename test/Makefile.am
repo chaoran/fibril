@@ -7,6 +7,7 @@ check_PROGRAMS = \
                  fib \
                  integrate \
                  matmul \
+                 nqueens \
                  quicksort
 
 TESTS = $(check_PROGRAMS)
