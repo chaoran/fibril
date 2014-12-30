@@ -45,10 +45,8 @@ fibril static int nqueens(int * a, int n, int d)
   return sum;
 }
 
-void init()
-{
-  n = 14;
-}
+void init() {}
+void prep() {}
 
 void test()
 {

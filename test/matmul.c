@@ -109,7 +109,7 @@ void init()
   }
 }
 
-void test()
+void prep()
 {
   int i, j;
 
@@ -118,7 +118,10 @@ void test()
       c[i][j] = 0;
     }
   }
+}
 
+void test()
+{
   compute(a, 0, 0, b, 0, 0, c, 0, 0, n);
 }
 

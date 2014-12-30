@@ -3,7 +3,7 @@
 #include "test.h"
 
 int n = 8;
-static int * a;
+static int * a, * b;
 static size_t size;
 
 fibril void quicksort(int * a, size_t n)
@@ -62,9 +62,18 @@ void init()
   }
 
   a = malloc(sizeof(int [size]));
+  b = malloc(sizeof(int [size]));
 
   for (i = 0; i < size; ++i) {
-    a[i] = rand();
+    b[i] = rand();
+  }
+}
+
+void prep()
+{
+  int i;
+  for (i = 0; i < size; ++i) {
+    a[i] = b[i];
   }
 }
 

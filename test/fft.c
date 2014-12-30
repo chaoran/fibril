@@ -23,8 +23,14 @@
 #include "test.h"
 #include "fft.h"
 
-int n = (1 << 14);
-static COMPLEX *in, *out;
+#ifdef BENCHMARK
+int n = 26;
+#else
+int n = 12;
+#endif
+
+static int size;
+static COMPLEX *in, *out, *cp;
 static const REAL pi = 3.1415926535897932384626434;
 
 /*
@@ -284,41 +290,48 @@ static void fft_alt(int n, COMPLEX * in, COMPLEX * out)
 
 void init()
 {
-  out = (COMPLEX*) malloc(n * sizeof(COMPLEX));
-  in  = (COMPLEX*) malloc(n * sizeof(COMPLEX));
+  size = (1 << n);
+  out = (COMPLEX*) malloc(size * sizeof(COMPLEX));
+  in  = (COMPLEX*) malloc(size * sizeof(COMPLEX));
 
   int i;
-  for (i = 0; i < n; ++i) {
+  for (i = 0; i < size; ++i) {
     c_re(in[i]) = drand48();
     c_im(in[i]) = drand48();
   }
 }
 
-void test()
+void prep()
 {
-  COMPLEX * cp = malloc(sizeof(COMPLEX [n]));
+  free(cp);
+  cp = malloc(sizeof(COMPLEX [size]));
 
   int i;
-  for (i = 0; i < n; ++i) {
+  for (i = 0; i < size; ++i) {
     c_re(cp[i]) = c_re(in[i]);
     c_im(cp[i]) = c_im(in[i]);
   }
-
-  fft(n, cp, out);
-  free(cp);
 }
 
+void test()
+{
+  fft(size, cp, out);
+}
+
+#ifdef BENCHMARK
+int verify(void) { return 0; }
+#else
 int verify(void)
 {
-  COMPLEX * expect = malloc(sizeof(COMPLEX [n]));
+  COMPLEX * expect = malloc(sizeof(COMPLEX [size]));
 
-  fft_alt(n, in, expect);
+  fft_alt(size, in, expect);
 
   /* compute the relative error */
   double error = 0.0;
 
   int i;
-  for (i = 0; i < n; ++i) {
+  for (i = 0; i < size; ++i) {
     double a = sqrt(
         (c_re(out[i]) - c_re(expect[i])) * (c_re(out[i]) - c_re(expect[i])) +
         (c_im(out[i]) - c_im(expect[i])) * (c_im(out[i]) - c_im(expect[i])));
@@ -331,11 +344,12 @@ int verify(void)
 
   free(expect);
 
-  if (error > 2e-3) {
-    printf("n=%d error=%e\n", n, error);
+  if (error > 1e-3) {
+    printf("size=%d error=%e\n", size, error);
     return 1;
   } else {
     return 0;
   }
 }
+#endif
 

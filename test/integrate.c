@@ -57,7 +57,8 @@ double integrate(double x1, double y1, double x2, double y2, double area)
   return area_x1x0 + area_x0x2;
 }
 
-void init() { }
+void init() {}
+void prep() {}
 
 void test()
 {

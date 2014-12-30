@@ -43,6 +43,7 @@ int verify()
 }
 
 void init() {};
+void prep() {};
 
 void test() {
   m = fib(n);
