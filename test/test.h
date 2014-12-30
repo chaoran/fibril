@@ -17,16 +17,17 @@ extern int n;
 #include <float.h>
 #include <string.h>
 
-static void bench(const char * name)
+static void bench(const char * name, int nprocs)
 {
   static iter = 10;
 
   float times[iter];
+
   printf("===========================================\n");
   printf("  Benchmark: %s\n", strrchr(name, '/') + 1);
   printf("  Input size: %d\n", n);
   printf("  Number of iterations: %d\n", iter);
-  printf("  Number of processors: %d\n", fibril_rt_nprocs(0));
+  printf("  Number of processors: %d\n", nprocs);
 
   int i;
   for (i = 0; i < iter; ++i) {
@@ -34,7 +35,7 @@ static void bench(const char * name)
     clock_t t = clock();
     test();
     t = clock() - t;
-    times[i] = (float) t / CLOCKS_PER_SEC;
+    times[i] = (float) t / CLOCKS_PER_SEC / nprocs;
     printf("  #%d execution time: %fs\n", i + 1, times[i]);
   }
 
@@ -65,8 +66,9 @@ int main(int argc, const char *argv[])
   init();
 
 #ifdef BENCHMARK
-  fibril_rt_init(fibril_rt_nprocs(0));
-  bench(argv[0]);
+  int nprocs = fibril_rt_nprocs(0);
+  fibril_rt_init(nprocs);
+  bench(argv[0], nprocs);
 #else
   fibril_rt_init(FIBRIL_NPROCS_ONLN);
   prep();
