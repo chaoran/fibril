@@ -111,6 +111,14 @@ void init()
 
 void test()
 {
+  int i, j;
+
+  for (i = 0; i < n; ++i) {
+    for (j = 0; j < n; ++j) {
+      c[i][j] = 0;
+    }
+  }
+
   compute(a, 0, 0, b, 0, 0, c, 0, 0, n);
 }
 
