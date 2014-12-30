@@ -18,6 +18,10 @@
 #ifdef FIBRIL_SERIAL
 #include <fibril/serial.h>
 
+/** Cilkplus version. */
+#elif FIBRIL_CILKPLUS
+#include <fibril/cilkplus.h>
+
 /** Fibril version. */
 #else
 #include <fibril/fibrile.h>
