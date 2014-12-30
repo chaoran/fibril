@@ -1,5 +1,10 @@
+#include <math.h>
 #include <stdlib.h>
-#include <fibril.h>
+#include "test.h"
+
+int n = 8;
+static int * a;
+static size_t size;
 
 fibril void quicksort(int * a, size_t n)
 {
@@ -33,39 +38,38 @@ fibril void quicksort(int * a, size_t n)
   fibril_join(&fr);
 }
 
-static int verify(int * a, size_t n)
+int verify()
 {
-  if (n < 2) return 1;
+  if (size < 2) return 0;
 
   int prev = a[0];
   int i;
-  for (i = 1; i < n; ++i) {
-    if (prev > a[i]) return 0;
+  for (i = 1; i < size; ++i) {
+    if (prev > a[i]) return 1;
     prev = a[i];
   }
 
-  return 1;
+  return 0;
 }
 
-static void init(int * a, size_t n)
+void init()
 {
+  size = 1;
+
   int i;
   for (i = 0; i < n; ++i) {
+    size *= 10;
+  }
+
+  a = malloc(sizeof(int [size]));
+
+  for (i = 0; i < size; ++i) {
     a[i] = rand();
   }
 }
 
-int main(int argc, const char *argv[])
+void test()
 {
-  int n = 10000000;
-  int * a = malloc(sizeof(int [n]));
-
-  init(a, n);
-
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
-  quicksort(a, n);
-  fibril_rt_exit();
-
-  return !verify(a, n);
+  quicksort(a, size);
 }
 
