@@ -26,6 +26,7 @@ static void bench(const char * name)
   printf("  Benchmark: %s\n", strrchr(name, '/') + 1);
   printf("  Input size: %d\n", n);
   printf("  Number of iterations: %d\n", iter);
+  printf("  Number of processors: %d\n", fibril_rt_nprocs(0));
 
   int i;
   for (i = 0; i < iter; ++i) {

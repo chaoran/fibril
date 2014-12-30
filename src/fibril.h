@@ -44,6 +44,7 @@ typedef struct _fibril_t fibril_t;
 } while (0)
 
 extern int fibril_rt_init(int nprocs);
+extern int fibril_rt_nprocs(int nprocs);
 extern int fibril_rt_exit();
 
 #else /* #ifdef FIBRIL_SERIAL */
@@ -56,6 +57,7 @@ extern int fibril_rt_exit();
 #define fibril_join(frptr)
 
 #define fibril_rt_init(nprocs)
+#define fibril_rt_nprocs(nprocs) (1)
 #define fibril_rt_exit()
 
 #endif /* end of #ifndef FIBRIL_SERIAL */

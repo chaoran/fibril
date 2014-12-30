@@ -13,6 +13,7 @@ static __thread fibril_t * _restart;
 static __thread fibril_t * _frptr;
 static deque_t ** _deqs;
 static fibril_t * _stop;
+static int nprocs;
 
 void proc_resume(const fibril_t * frptr, void * rsp)
 {
@@ -67,7 +68,7 @@ static void schedule(int id, int nprocs)
     }
   }
 
-  sync_barrier(PARAM_NUM_PROCS);
+  sync_barrier(nprocs);
 
   if (id) pthread_exit(NULL);
   else proc_resume(_stop, _stop->stack.top);
@@ -109,7 +110,7 @@ void proc_stop()
     fibrili_membar(fibrili_yield(_stop));
   } else {
     _stop = &fr;
-    sync_barrier(PARAM_NUM_PROCS);
+    sync_barrier(param_nprocs(0));
   }
 
   free(_deqs);
