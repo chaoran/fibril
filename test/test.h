@@ -63,11 +63,12 @@ int main(int argc, const char *argv[])
   }
 
   init();
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
 
 #ifdef BENCHMARK
+  fibril_rt_init(fibril_rt_nprocs(0));
   bench(argv[0]);
 #else
+  fibril_rt_init(FIBRIL_NPROCS_ONLN);
   prep();
   test();
 #endif

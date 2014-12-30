@@ -33,13 +33,13 @@ int param_nprocs(int n)
   char * env;
 
   switch (n) {
-    case FIBRIL_NPROCS_ONLN:
-      nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-      break;
     case FIBRIL_NPROCS:
       if ((env = getenv("FIBRIL_NPROCS"))) {
         nprocs = atoi(env);
       }
+      if (nprocs != -1) break;
+    case FIBRIL_NPROCS_ONLN:
+      nprocs = sysconf(_SC_NPROCESSORS_ONLN);
       break;
     default:
       nprocs = n;
