@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([fibril], [0.1], [chaoran@rice.edu])
+AC_INIT([fibril], [0.0.2], [chaoran@rice.edu])
 AM_INIT_AUTOMAKE([-Wall -Wno-extra-portability -Werror foreign])
 LT_PREREQ([2.2])
 LT_INIT
