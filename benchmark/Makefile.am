@@ -1,3 +1,3 @@
-VPATH = $(srcdir)/../test
-include $(srcdir)/../test/Makefile.am
+VPATH = $(top_srcdir)/test
+include $(top_srcdir)/test/Makefile.am
 AM_CPPFLAGS += -DBENCHMARK

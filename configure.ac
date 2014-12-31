@@ -42,5 +42,6 @@ AC_CHECK_FUNCS([munmap])
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  test/Makefile
-                 benchmark/Makefile])
+                 benchmark/Makefile
+                 benchmark/cilkplus/Makefile])
 AC_OUTPUT
