@@ -3,7 +3,7 @@
 #include "sync.h"
 #include "debug.h"
 #include "stack.h"
-#include "fibril.h"
+#include "fibrile.h"
 
 static int join(fibril_t * frptr)
 {
@@ -24,7 +24,6 @@ static int join(fibril_t * frptr)
   return 0;
 }
 
-__attribute__((noinline, optimize("-O3", "-fno-omit-frame-pointer")))
 int fibrili_join(fibril_t * frptr)
 {
   if (!join(frptr)) return 0;

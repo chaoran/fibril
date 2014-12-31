@@ -1,7 +1,7 @@
 #ifndef FIBRILE_H
 #define FIBRILE_H
 
-#include <fibril/fibrili.h>
+#include "fibrili.h"
 
 /** fibril. */
 #define fibril __attribute__((optimize("no-omit-frame-pointer")))
@@ -31,7 +31,7 @@ void fibril_join(fibril_t * frptr)
   }
 }
 
-#include <fibril/fork.h>
+#include "fork.h"
 
 /** _fibril_fork_nrt. */
 #define fibril_fork_nrt(fp, fn, ag) do { \

@@ -1,7 +1,7 @@
 #ifndef SYNC_H
 #define SYNC_H
 
-#include "fibril/fibrili.h"
+#include "fibrili.h"
 
 #define sync_fence() fibrili_fence()
 #define sync_lock(lock) fibrili_lock(lock)

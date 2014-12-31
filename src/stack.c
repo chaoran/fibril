@@ -5,7 +5,7 @@
 #include "param.h"
 #include "stack.h"
 
-void * stack_setup(fibril_t * frptr)
+void * stack_setup(struct _fibril_t * frptr)
 {
   size_t align = PARAM_PAGE_SIZE;
   size_t size  = PARAM_STACK_SIZE;
@@ -21,7 +21,7 @@ void * stack_setup(fibril_t * frptr)
   return rsp;
 }
 
-void stack_uninstall(fibril_t * frptr)
+void stack_uninstall(struct _fibril_t * frptr)
 {
   DEBUG_ASSERT(frptr != NULL);
 
@@ -34,7 +34,7 @@ void stack_uninstall(fibril_t * frptr)
   SAFE_NNCALL(munmap(addr, size));
 }
 
-void stack_reinstall(fibril_t * frptr)
+void stack_reinstall(struct _fibril_t * frptr)
 {
   static int prot = PROT_READ | PROT_WRITE;
   static int flag = MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS;

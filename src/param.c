@@ -4,7 +4,6 @@
 #include <pthread.h>
 #include "safe.h"
 #include "param.h"
-#include "fibril.h"
 
 size_t PARAM_PAGE_SIZE;
 void * PARAM_STACK_ADDR;
@@ -33,12 +32,12 @@ int param_nprocs(int n)
   char * env;
 
   switch (n) {
-    case FIBRIL_NPROCS:
+    case 0:
       if ((env = getenv("FIBRIL_NPROCS"))) {
         nprocs = atoi(env);
       }
       if (nprocs != -1) break;
-    case FIBRIL_NPROCS_ONLN:
+    case -1:
       nprocs = sysconf(_SC_NPROCESSORS_ONLN);
       break;
     default:

@@ -1,7 +1,7 @@
 #ifndef PROC_H
 #define PROC_H
 
-#include "fibril.h"
+#include "fibrile.h"
 
 __attribute__((noreturn)) extern
 void proc_restart(fibril_t * frptr);

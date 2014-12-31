@@ -4,7 +4,6 @@
 #include "proc.h"
 #include "debug.h"
 #include "param.h"
-#include "fibril.h"
 
 static pthread_t * _procs;
 static void ** _stacks;
@@ -58,7 +57,7 @@ int fibril_rt_init(int n)
   __main((void *) 0);
   __asm__ ( "xchg\t%0,%%rsp" : : "r" (rsp) );
 
-  return FIBRIL_SUCCESS;
+  return 0;
 }
 
 int fibril_rt_exit()
@@ -75,6 +74,6 @@ int fibril_rt_exit()
   free(_procs);
   free(_stacks);
 
-  return FIBRIL_SUCCESS;
+  return 0;
 }
 
