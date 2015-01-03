@@ -38,8 +38,13 @@ fibril int fib(int n)
 int verify()
 {
   int expect = fib_fast(n);
-  printf("fib(%d)=%d (expected %d)\n", n, m, expect);
-  return (expect != m);
+
+  if (expect != m) {
+    printf("fib(%d)=%d (expected %d)\n", n, m, expect);
+    return 1;
+  }
+
+  return 0;
 }
 
 void init() {};

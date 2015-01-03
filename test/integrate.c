@@ -68,7 +68,12 @@ void test()
 int verify()
 {
   double expect = integrate_serial(0, f(0), n, f(n), 0);
+
+  if (m - expect < epsilon && expect - m < epsilon) {
+    return 0;
+  }
+
   printf("integrate(%d)=%lf (expected %lf)\n", n, m, expect);
-  return !(m - expect < epsilon && expect - m < epsilon);
+  return 1;
 }
 
