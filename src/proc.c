@@ -39,10 +39,6 @@ static void yield(fibril_t * frptr)
   if (frptr->stack.ptr == fibrili_deq.stack) {
     stack_uninstall(frptr);
   }
-  /** If current stack is not the main stack, free the whole stack. */
-  else if (fibrili_deq.stack != PARAM_STACK_ADDR) {
-    free(fibrili_deq.stack);
-  }
 
   sync_unlock(frptr->lock);
 }
@@ -82,6 +78,8 @@ void proc_start(int id, int nprocs)
     fibrili_deq.stack = PARAM_STACK_ADDR;
     /** Setup deque pointers. */
     _deqs = malloc(sizeof(deque_t * [nprocs]));
+  } else {
+    fibrili_deq.stack = NULL;
   }
 
   sync_barrier(nprocs);
