@@ -17,6 +17,24 @@ extern int n;
 #include <float.h>
 #include <string.h>
 
+static void sort(float * a, int n)
+{
+  int i, sorted = 0;
+
+  while (!sorted) {
+    sorted = 1;
+
+    for (i = 1; i < n; ++i) {
+      if (a[i] < a[i - 1]) {
+        float t = a[i];
+        a[i] = a[i - 1];
+        a[i - 1] = t;
+        sorted = 0;
+      }
+    }
+  }
+}
+
 static void bench(const char * name, int nprocs)
 {
   static iter = 10;
@@ -36,22 +54,19 @@ static void bench(const char * name, int nprocs)
     test();
     t = clock() - t;
     times[i] = (float) t / CLOCKS_PER_SEC / nprocs;
-    printf("  #%d execution time: %fs\n", i + 1, times[i]);
+    printf("  #%d execution time: %f s\n", i, times[i]);
   }
 
-  float max = 0.0;
-  float min = FLT_MAX;
-  float sum = 0.0;
+  sort(times, iter);
 
-  for (i = 0; i < iter; ++i) {
-    if (times[i] > max) max = times[i];
-    if (times[i] < min) min = times[i];
-    sum += times[i];
-  }
+  float p10 = times[1];
+  float p90 = times[8];
+  float med = times[5];
 
-  printf("  Maximum execution time: %fs\n", max);
-  printf("  Minimum execution time: %fs\n", min);
-  printf("  Average execution time: %fs\n", sum / iter);
+  printf("  Execution time summary:\n");
+  printf("    Median: %f s\n", med);
+  printf("    10th %: %f s\n", p10);
+  printf("    90th %: %f s\n", p90);
   printf("===========================================\n");
 }
 
