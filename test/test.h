@@ -80,12 +80,12 @@ int main(int argc, const char *argv[])
 
   init();
 
-#ifdef BENCHMARK
   int nprocs = fibril_rt_nprocs(0);
   fibril_rt_init(nprocs);
+
+#ifdef BENCHMARK
   bench(argv[0], nprocs);
 #else
-  fibril_rt_init(FIBRIL_NPROCS_ONLN);
   prep();
   test();
 #endif
