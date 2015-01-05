@@ -66,7 +66,13 @@ static void schedule(int id, int nprocs)
 
   sync_barrier(nprocs);
 
-  if (id) pthread_exit(NULL);
+  if (id) {
+    DEBUG_DUMP(0, "mmap", (time_map_count, "%ld"),
+        (time_map_sum / time_map_count, "%lf"));
+    DEBUG_DUMP(0, "munmap", (time_unmap_count, "%ld"),
+        (time_unmap_sum / time_unmap_count, "%lf"));
+    pthread_exit(NULL);
+  }
   else proc_resume(_stop, _stop->stack.top);
 }
 
@@ -111,6 +117,10 @@ void proc_stop()
     sync_barrier(param_nprocs(0));
   }
 
+  DEBUG_DUMP(0, "mmap", (time_map_count, "%ld"),
+      (time_map_sum / time_map_count, "%lf"));
+  DEBUG_DUMP(0, "munmap", (time_unmap_count, "%ld"),
+      (time_unmap_sum / time_unmap_count, "%lf"));
   free(_deqs);
 }
 

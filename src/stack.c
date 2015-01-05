@@ -1,9 +1,13 @@
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include "safe.h"
 #include "sync.h"
 #include "param.h"
 #include "stack.h"
+
+__thread size_t time_map_count, time_unmap_count;
+__thread double time_map_sum, time_unmap_sum;
 
 void * stack_setup(struct _fibril_t * frptr)
 {
@@ -34,7 +38,15 @@ void stack_uninstall(struct _fibril_t * frptr)
 
   DEBUG_DUMP(3, "munmap:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
+
+  struct timeval tv1, tv2;
+  gettimeofday(&tv1, NULL);
   SAFE_NNCALL(munmap(addr, size));
+  gettimeofday(&tv2, NULL);
+
+  time_unmap_count++;
+  time_unmap_sum += (double) tv2.tv_sec + (double) tv2.tv_usec * .000001 -
+    (double) tv1.tv_sec - (double) tv1.tv_usec * .000001;
 
   /** Mark current stack as lost. */
   fibrili_deq.stack = NULL;
@@ -51,6 +63,14 @@ void stack_reinstall(struct _fibril_t * frptr)
 
   DEBUG_DUMP(3, "mmap:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
+
+  struct timeval tv1, tv2;
+  gettimeofday(&tv1, NULL);
   SAFE_NNCALL(mmap(addr, size, prot, flag, -1, 0));
+  gettimeofday(&tv2, NULL);
+
+  time_map_count++;
+  time_map_sum += (double) tv2.tv_sec + (double) tv2.tv_usec * .000001 -
+    (double) tv1.tv_sec - (double) tv1.tv_usec * .000001;
 }
 
