@@ -44,7 +44,7 @@ int fibrili_join(fibril_t * frptr)
   /** Restore the stack pointer. */
   __asm__ ( "mov\t%0,%%rbp\n\t"
             "mov\t%1,%%rsp"
-            : : "g" (rbp), "g" (rsp) );
+            : : "r" (rbp), "r" (rsp) );
 
   free(fibrili_deq.stack);
   fibrili_deq.stack = frptr->stack.ptr;
