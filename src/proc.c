@@ -5,7 +5,6 @@
 #include "stack.h"
 #include "debug.h"
 #include "deque.h"
-#include "param.h"
 
 __thread int _tid;
 
@@ -74,13 +73,10 @@ void proc_start(int id, int nprocs)
 {
   _tid = id;
 
-  if (id == 0) {
-    fibrili_deq.stack = PARAM_STACK_ADDR;
-    /** Setup deque pointers. */
-    _deqs = malloc(sizeof(deque_t * [nprocs]));
-  } else {
-    fibrili_deq.stack = NULL;
-  }
+  stack_init(id);
+
+  /** Setup deque pointers. */
+  if (id == 0) _deqs = malloc(sizeof(deque_t * [nprocs]));
 
   sync_barrier(nprocs);
   _deqs[id] = &fibrili_deq;

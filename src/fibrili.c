@@ -1,8 +1,11 @@
 #include <stdlib.h>
+#include <sys/mman.h>
 #include "proc.h"
+#include "safe.h"
 #include "sync.h"
 #include "debug.h"
 #include "stack.h"
+#include "param.h"
 #include "fibrile.h"
 
 static int join(fibril_t * frptr)
@@ -46,7 +49,8 @@ int fibrili_join(fibril_t * frptr)
             "mov\t%1,%%rsp"
             : : "g" (rbp), "g" (rsp) );
 
-  free(fibrili_deq.stack);
+  /*free(fibrili_deq.stack);*/
+  SAFE_NNCALL(munmap(fibrili_deq.stack, PARAM_STACK_SIZE));
   fibrili_deq.stack = frptr->stack.ptr;
   return 1;
 }
