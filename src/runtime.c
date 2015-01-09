@@ -34,7 +34,7 @@ int fibril_rt_init(int n)
   size_t stacksize = PARAM_STACK_SIZE;
 
   _procs = malloc(sizeof(pthread_t [nprocs]));
-  _stacks = malloc(stacksize);
+  _stacks = malloc(sizeof(void * [nprocs]));
 
   pthread_attr_t attrs[nprocs];
   int i;
