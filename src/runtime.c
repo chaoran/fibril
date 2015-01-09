@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <pthread.h>
 #include "proc.h"
+#include "safe.h"
 #include "debug.h"
 #include "param.h"
 
@@ -40,7 +41,7 @@ int fibril_rt_init(int n)
   int i;
 
   for (i = 1; i < nprocs; ++i) {
-    _stacks[i] = malloc(stacksize);
+    SAFE_RZCALL(posix_memalign(&_stacks[i], PARAM_PAGE_SIZE, stacksize));
     pthread_attr_init(&attrs[i]);
     pthread_attr_setstack(&attrs[i], _stacks[i], stacksize);
     pthread_create(&_procs[i], &attrs[i], __main, (void *) (intptr_t) i);
@@ -48,7 +49,7 @@ int fibril_rt_init(int n)
   }
 
   _procs[0] = pthread_self();
-  _stacks[0] = malloc(stacksize);
+  SAFE_RZCALL(posix_memalign(&_stacks[0], PARAM_PAGE_SIZE, stacksize));
 
   register void * rsp asm ("r15");
   rsp = _stacks[0] + stacksize;
