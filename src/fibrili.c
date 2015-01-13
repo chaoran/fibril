@@ -13,10 +13,7 @@ static int join(fibril_t * frptr)
   DEBUG_DUMP(1, "join:", (frptr, "%p"), (count, "%d"));
 
   if (0 == count) {
-    if (frptr->stack.ptr != fibrili_deq.stack) {
-      stack_reinstall(frptr);
-    }
-
+    stack_reinstall(frptr);
     sync_unlock(frptr->lock);
     return 1;
   }

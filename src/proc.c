@@ -36,10 +36,7 @@ void execute(fibril_t * frptr)
 static void yield(fibril_t * frptr)
 {
   /** Unmap partial stack if current stack has the frame. */
-  if (frptr->stack.ptr == fibrili_deq.stack) {
-    stack_uninstall(frptr);
-  }
-
+  stack_uninstall(frptr);
   sync_unlock(frptr->lock);
 }
 
