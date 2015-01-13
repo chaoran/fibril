@@ -5,18 +5,31 @@
 #include "param.h"
 #include "stack.h"
 
+static void * stack_alloc()
+{
+  const size_t align = PARAM_PAGE_SIZE;
+  const size_t size = PARAM_STACK_SIZE;
+
+  void * addr;
+  SAFE_RZCALL(posix_memalign(&addr, align, size));
+  SAFE_ASSERT(addr != NULL && PAGE_ALIGNED(addr));
+
+  DEBUG_DUMP(3, "stack_alloc:", (addr, "%p"));
+  return addr;
+}
+
+void stack_init(int id)
+{
+  if (id == 0) {
+    fibrili_deq.stack = PARAM_STACK_ADDR;
+  } else {
+    fibrili_deq.stack = stack_alloc();
+  }
+}
+
 void * stack_setup(struct _fibril_t * frptr)
 {
-  size_t size  = PARAM_STACK_SIZE;
-
-  if (fibrili_deq.stack == NULL) {
-    size_t align = PARAM_PAGE_SIZE;
-    SAFE_RZCALL(posix_memalign(&fibrili_deq.stack, align, size));
-    SAFE_ASSERT(fibrili_deq.stack != NULL && PAGE_ALIGNED(fibrili_deq.stack));
-    DEBUG_DUMP(3, "stack:", (fibrili_deq.stack, "%p"));
-  }
-
-  void ** rsp = fibrili_deq.stack + size;
+  void ** rsp = fibrili_deq.stack + PARAM_STACK_SIZE;
 
   /** Reserve 128 byte at the bottom. */
   rsp -= 16;
@@ -38,7 +51,7 @@ void stack_uninstall(struct _fibril_t * frptr)
   SAFE_NNCALL(munmap(addr, size));
 
   /** Mark current stack as lost. */
-  fibrili_deq.stack = NULL;
+  fibrili_deq.stack = stack_alloc();
 }
 
 void stack_reinstall(struct _fibril_t * frptr)

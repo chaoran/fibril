@@ -70,13 +70,11 @@ static void schedule(int id, int nprocs)
 void proc_start(int id, int nprocs)
 {
   _tid = id;
+  stack_init(id);
 
   if (id == 0) {
-    fibrili_deq.stack = PARAM_STACK_ADDR;
     /** Setup deque pointers. */
     _deqs = malloc(sizeof(deque_t * [nprocs]));
-  } else {
-    fibrili_deq.stack = NULL;
   }
 
   sync_barrier(nprocs);
