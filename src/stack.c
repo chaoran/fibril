@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <linux/version.h>
 #include "safe.h"
 #include "sync.h"
 #include "param.h"
@@ -18,7 +19,11 @@ static void stack_move(void * dest, size_t dest_len, void * src, size_t src_len)
   static const int prot = PROT_READ | PROT_WRITE;
   static const int remap_flags = MREMAP_MAYMOVE | MREMAP_FIXED;
   static const int map_flags = MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS
-    | MAP_STACK | MAP_NORESERVE | MAP_GROWSDOWN;
+    | MAP_NORESERVE | MAP_GROWSDOWN;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
+  map_flags |= MAP_STACK;
+#endif
 
   if (MAP_FAILED == mremap(src, src_len, dest_len, remap_flags, dest)) {
     SAFE_NNCALL(munmap(src, src_len));
