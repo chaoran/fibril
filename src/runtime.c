@@ -1,20 +1,24 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
-#include "proc.h"
 #include "safe.h"
 #include "debug.h"
 #include "param.h"
 
 static pthread_t * _procs;
 static void ** _stacks;
-static int nprocs;
+static int _nprocs;
+
+__thread int _tid;
+
+extern void fibrili_init(int id, int nprocs);
+extern void fibrili_exit(int id, int nprocs);
 
 static void * __main(void * id)
 {
-  int tid = (int) (intptr_t) id;
+  _tid = (int) (intptr_t) id;
 
-  proc_start(tid, nprocs);
+  fibrili_init(_tid, _nprocs);
   return NULL;
 }
 
@@ -27,10 +31,10 @@ int fibril_rt_init(int n)
 {
   param_init();
 
-  nprocs = param_nprocs(n);
+  int nprocs = _nprocs = param_nprocs(n);
   DEBUG_DUMP(2, "fibril_rt_init:", (nprocs, "%d"));
 
-  if (nprocs < 0) return -1;
+  if (_nprocs < 0) return -1;
 
   size_t stacksize = PARAM_STACK_SIZE;
 
@@ -63,11 +67,11 @@ int fibril_rt_init(int n)
 
 int fibril_rt_exit()
 {
-  proc_stop();
+  fibrili_exit(_tid, _nprocs);
 
   int i;
 
-  for (i = 1; i < nprocs; ++i) {
+  for (i = 1; i < _nprocs; ++i) {
     pthread_join(_procs[i], NULL);
     free(_stacks[i]);
   }

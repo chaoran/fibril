@@ -1,20 +1,18 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include "sync.h"
-#include "proc.h"
 #include "stack.h"
 #include "debug.h"
 #include "deque.h"
 #include "param.h"
-
-__thread int _tid;
+#include "fibrile.h"
 
 static __thread fibril_t * _restart;
 static __thread fibril_t * _frptr;
 static deque_t ** _deqs;
 static fibril_t * _stop;
-static int nprocs;
 
+__attribute__((noreturn)) static
 void longjmp(fibril_t * frptr, void * rsp)
 {
   DEBUG_DUMP(3, "jump:", (frptr->pc, "%p"), (rsp, "%p"));
@@ -26,8 +24,8 @@ void longjmp(fibril_t * frptr, void * rsp)
   __builtin_unreachable();
 }
 
-__attribute__((noinline))
-static void schedule(int id, int nprocs, fibril_t * frptr)
+__attribute__((noinline)) static
+void schedule(int id, int nprocs, fibril_t * frptr)
 {
   if (frptr != _restart && frptr != _stop) {
     sync_lock(frptr->lock);
@@ -62,7 +60,7 @@ static void schedule(int id, int nprocs, fibril_t * frptr)
   else longjmp(_stop, _stop->stack.top);
 }
 
-void proc_start(int id, int nprocs)
+void fibrili_init(int id, int nprocs)
 {
   _tid = id;
   stack_init(id);
@@ -85,18 +83,18 @@ void proc_start(int id, int nprocs)
   schedule(id, nprocs, _frptr);
 }
 
-void proc_stop()
+void fibrili_exit(int id, int nprocs)
 {
   fibril_t fr;
 
-  if (_tid != 0) {
+  if (id != 0) {
     fibril_init(&fr);
     _stop = &fr;
     DEBUG_DUMP(2, "proc_stop:", (_stop, "%p"), (fibrili_deq.stack, "%p"));
     fibrili_membar(fibrili_join(_stop));
   } else {
     _stop = &fr;
-    sync_barrier(param_nprocs(0));
+    sync_barrier(nprocs);
   }
 
   free(_deqs);
