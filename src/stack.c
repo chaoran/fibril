@@ -94,7 +94,7 @@ void stack_uninstall(struct _fibril_t * frptr)
   void * top  = frptr->stack.top;
   size_t size = PAGE_ALIGN_DOWN(top) - addr;
 
-  DEBUG_DUMP(3, "install:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
+  DEBUG_DUMP(3, "uninstall:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
   fibrili_deq.stack = stack_alloc(addr, size);
 }
