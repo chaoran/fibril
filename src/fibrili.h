@@ -26,10 +26,8 @@ extern __thread struct _fibrili_deque_t {
 } while (__atomic_test_and_set(&(l), __ATOMIC_ACQUIRE))
 #define fibrili_unlock(l) __atomic_clear(&(l), __ATOMIC_RELEASE)
 
-__attribute__((noinline, optimize("no-omit-frame-pointer"))) extern
-int fibrili_join(struct _fibril_t * frptr);
 __attribute__((noinline)) extern
-void fibrili_yield(struct _fibril_t * frptr);
+void fibrili_join(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern
 void fibrili_resume(struct _fibril_t * frptr);
 

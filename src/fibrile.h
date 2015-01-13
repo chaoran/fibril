@@ -26,8 +26,8 @@ void fibril_init(fibril_t * frptr)
 __attribute__((always_inline)) extern inline
 void fibril_join(fibril_t * frptr)
 {
-  if (frptr->count > -1 && !fibrili_join(frptr)) {
-    fibrili_membar(fibrili_yield(frptr));
+  if (frptr->count > -1) {
+    fibrili_membar(fibrili_join(frptr));
   }
 }
 

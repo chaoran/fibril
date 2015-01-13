@@ -57,7 +57,12 @@ void stack_uninstall(struct _fibril_t * frptr)
 void stack_reinstall(struct _fibril_t * frptr)
 {
   DEBUG_ASSERT(frptr != NULL);
-  if (frptr->stack.ptr == fibrili_deq.stack) return;
+  void * stack = fibrili_deq.stack;
+
+  if (frptr->stack.ptr == stack) return;
+
+  free(stack);
+  fibrili_deq.stack = frptr->stack.ptr;
 
   static int prot = PROT_READ | PROT_WRITE;
   static int flag = MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS;
