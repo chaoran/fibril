@@ -8,8 +8,8 @@
 #define fibril_init(fp)
 #define fibril_join(fp) cilk_sync
 
-#define fibril_fork_nrt(fp, fn, ag)     (cilk_spawn fn ag)
-#define fibril_fork_wrt(fp, rt, fn, ag) (rt = cilk_spawn fn ag)
+#define fibril_fork_nrt(fp, fn, ag)     cilk_spawn fn ag
+#define fibril_fork_wrt(fp, rt, fn, ag) rt = cilk_spawn fn ag
 
 #define fibril_rt_init(n)
 #define fibril_rt_exit()
