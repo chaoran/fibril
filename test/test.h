@@ -37,7 +37,7 @@ static void sort(float * a, int n)
 
 static void bench(const char * name, int nprocs)
 {
-  static iter = 10;
+  static int iter = 10;
 
   float times[iter];
 
@@ -65,8 +65,8 @@ static void bench(const char * name, int nprocs)
 
   printf("  Execution time summary:\n");
   printf("    Median: %f s\n", med);
-  printf("    10th %: %f s\n", p10);
-  printf("    90th %: %f s\n", p90);
+  printf("    10th %%: %f s\n", p10);
+  printf("    90th %%: %f s\n", p90);
   printf("===========================================\n");
 }
 
@@ -74,7 +74,7 @@ static void bench(const char * name, int nprocs)
 
 int main(int argc, const char *argv[])
 {
-  if (argc > 1 && (argc = atoi(argv[1])) > 0) {
+  if (argc > 1 && (argc = atoi((void *) argv[1])) > 0) {
     n = argc;
   }
 
