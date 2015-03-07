@@ -14,4 +14,5 @@ libfibril_la_SOURCES = deque.c \
                        param.c \
                        runtime.c \
                        stack.c \
-                       stats.c
+                       stats.c \
+											 mutex.c
