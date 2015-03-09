@@ -17,6 +17,7 @@ void fibril_init(fibril_t * frptr)
   register void * rsp asm ("rsp");
 
   frptr->lock = 0;
+  frptr->unmapped = 0;
   frptr->count = -1;
   frptr->stack.btm = rbp;
   frptr->stack.top = rsp;

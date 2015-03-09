@@ -3,6 +3,7 @@
 
 struct _fibril_t {
   char lock;
+  char unmapped;
   int count;
   struct {
     void * btm;

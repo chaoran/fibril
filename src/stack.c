@@ -3,8 +3,11 @@
 #include <sys/mman.h>
 #include "safe.h"
 #include "sync.h"
+#include "mutex.h"
 #include "param.h"
 #include "stack.h"
+
+static mutex_t * lock;
 
 void stack_init(int id)
 {
@@ -27,10 +30,12 @@ void * stack_setup(struct _fibril_t * frptr)
   return rsp;
 }
 
-void stack_uninstall(struct _fibril_t * frptr)
+int stack_uninstall(struct _fibril_t * frptr)
 {
   DEBUG_ASSERT(frptr != NULL);
-  if (frptr->stack.ptr != fibrili_deq.stack) return;
+
+  mutex_t mutex;
+  if (!mutex_trylock(&lock, &mutex)) return 0;
 
   void * addr = frptr->stack.ptr;
   void * top  = frptr->stack.top;
@@ -43,16 +48,21 @@ void stack_uninstall(struct _fibril_t * frptr)
   const size_t align = PARAM_PAGE_SIZE;
   SAFE_RZCALL(posix_memalign(&fibrili_deq.stack, align, PARAM_STACK_SIZE));
   DEBUG_DUMP(3, "alloc:", (frptr, "%p"), (fibrili_deq.stack, "%p"));
+
+  mutex_unlock(&lock, &mutex);
+  return 1;
 }
 
 void stack_reinstall(struct _fibril_t * frptr)
 {
   DEBUG_ASSERT(frptr != NULL);
-  if (frptr->stack.ptr == fibrili_deq.stack) return;
 
   void * addr = frptr->stack.ptr;
   void * top  = frptr->stack.top;
   size_t size = PAGE_ALIGN_DOWN(top) - addr;
+
+  mutex_t mutex;
+  mutex_lock(&lock, &mutex);
 
   DEBUG_DUMP(3, "free:", (frptr, "%p"), (fibrili_deq.stack, "%p"));
   DEBUG_ASSERT(fibrili_deq.stack != NULL);
@@ -64,5 +74,7 @@ void stack_reinstall(struct _fibril_t * frptr)
   DEBUG_DUMP(3, "reinstall:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
   SAFE_NNCALL(mmap(addr, size, prot, flags, -1, 0));
+
+  mutex_unlock(&lock, &mutex);
 }
 
