@@ -100,6 +100,10 @@ void fibrili_init(int id, int nprocs)
 
   fifo_register(&_fifo, &_handle);
   DEBUG_DUMP(2, "proc_start:", (id, "%d"), (_deqs[id], "%p"));
+  const size_t align = PARAM_PAGE_SIZE;
+  void * addr;
+  posix_memalign(&addr, align, PARAM_STACK_SIZE);
+  fifo_put(&_fifo, &_handle, addr);
 
   fibril_t fr;
   fibril_init(&fr);
