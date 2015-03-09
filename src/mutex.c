@@ -18,6 +18,7 @@ void mutex_lock(mutex_t ** mutex, mutex_t * node)
 
 int mutex_trylock(mutex_t ** mutex, mutex_t * node)
 {
+  node->next = NULL;
   mutex_t * prev = atomic_cas(mutex, NULL, node);
   return (prev == NULL);
 }
