@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#include <fcntl.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 #include "safe.h"
@@ -8,11 +9,13 @@
 #include "stack.h"
 
 static mutex_t * lock;
+static int devnull;
 
 void stack_init(int id)
 {
   if (id == 0) {
     fibrili_deq.stack = PARAM_STACK_ADDR;
+    SAFE_NNCALL(devnull = open("/dev/zero", O_RDONLY));
   } else {
     const size_t align = PARAM_PAGE_SIZE;
     const size_t size  = PARAM_STACK_SIZE;
@@ -43,7 +46,7 @@ int stack_uninstall(struct _fibril_t * frptr)
 
   DEBUG_DUMP(3, "uninstall:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
   DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
-  SAFE_NNCALL(munmap(addr, size));
+  SAFE_NNCALL(mmap(addr, size, PROT_NONE, MAP_FIXED | MAP_PRIVATE, devnull, 0));
 
   const size_t align = PARAM_PAGE_SIZE;
   SAFE_RZCALL(posix_memalign(&fibrili_deq.stack, align, PARAM_STACK_SIZE));
