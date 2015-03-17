@@ -12,10 +12,10 @@ extern int n;
 
 #ifdef BENCHMARK
 
-#include <time.h>
 #include <stdio.h>
 #include <float.h>
 #include <string.h>
+#include <sys/time.h>
 
 static void sort(float * a, int n)
 {
@@ -35,6 +35,13 @@ static void sort(float * a, int n)
   }
 }
 
+size_t static inline time_elapsed(size_t val)
+{
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return t.tv_sec * 1000000 + t.tv_usec - val;
+}
+
 static void bench(const char * name, int nprocs)
 {
   static iter = 10;
@@ -50,10 +57,10 @@ static void bench(const char * name, int nprocs)
   int i;
   for (i = 0; i < iter; ++i) {
     prep();
-    clock_t t = clock();
+    size_t usecs = time_elapsed(0);
     test();
-    t = clock() - t;
-    times[i] = (float) t / CLOCKS_PER_SEC / nprocs;
+    usecs = time_elapsed(usecs);
+    times[i] = usecs / 1000000.0;
     printf("  #%d execution time: %f s\n", i, times[i]);
   }
 
