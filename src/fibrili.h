@@ -31,12 +31,10 @@ void fibrili_join(struct _fibril_t * frptr);
 __attribute__((noreturn)) extern
 void fibrili_resume(struct _fibril_t * frptr);
 
-__attribute__((always_inline)) extern inline
-void fibrili_push(struct _fibril_t * frptr)
-{
-  frptr->pc = __builtin_return_address(0);
-  fibrili_deq.buff[fibrili_deq.tail++] = frptr;
-}
+#define fibrili_push(frptr) do { \
+  (frptr)->pc = __builtin_return_address(0); \
+  fibrili_deq.buff[fibrili_deq.tail++] = (frptr); \
+} while (0)
 
 __attribute__((hot)) static
 int fibrili_pop(void)
