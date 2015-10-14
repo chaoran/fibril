@@ -72,6 +72,8 @@ static void bench(const char * name, int nprocs)
 
 #endif
 
+#include <stdlib.h>
+
 int main(int argc, const char *argv[])
 {
   if (argc > 1 && (argc = atoi((void *) argv[1])) > 0) {
