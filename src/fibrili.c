@@ -10,10 +10,8 @@
 
 static __thread fibril_t * _restart;
 static __thread fibril_t * _frptr;
-static __thread fifo_handle_t _handle;
 static deque_t ** _deqs;
 static fibril_t * _stop;
-static fifo_t _fifo;
 
 __attribute__((noreturn)) static
 void longjmp(fibril_t * frptr, void * rsp)
@@ -40,7 +38,7 @@ void schedule(int id, int nprocs, fibril_t * frptr)
           frptr->unmapped = 0;
         }
         else {
-          fifo_put(&_fifo, &_handle, fibrili_deq.stack);
+          enqueue(fibrili_deq.stack);
           fibrili_deq.stack = frptr->stack.ptr;
         }
       }
@@ -54,7 +52,7 @@ void schedule(int id, int nprocs, fibril_t * frptr)
         }
         else {
           sync_unlock(frptr->lock);
-          fibrili_deq.stack = fifo_get(&_fifo, &_handle);
+          fibrili_deq.stack = dequeue();
         }
       } else {
         sync_unlock(frptr->lock);
@@ -90,7 +88,6 @@ void fibrili_init(int id, int nprocs)
 
   if (id == 0) {
     /** Setup deque pointers. */
-    fifo_init(&_fifo, 510, nprocs);
     _deqs = malloc(sizeof(deque_t * [nprocs]));
   }
 
@@ -98,12 +95,12 @@ void fibrili_init(int id, int nprocs)
   _deqs[id] = &fibrili_deq;
   sync_barrier(nprocs);
 
-  fifo_register(&_fifo, &_handle);
   DEBUG_DUMP(2, "proc_start:", (id, "%d"), (_deqs[id], "%p"));
   const size_t align = PARAM_PAGE_SIZE;
   void * addr;
   posix_memalign(&addr, align, PARAM_STACK_SIZE);
-  fifo_put(&_fifo, &_handle, addr);
+  enqueue(addr);
+  sync_barrier(nprocs);
 
   fibril_t fr;
   fibril_init(&fr);
