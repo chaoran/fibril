@@ -14,6 +14,7 @@ extern int n;
 
 #include <stdio.h>
 #include <float.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
@@ -44,7 +45,7 @@ size_t static inline time_elapsed(size_t val)
 
 static void bench(const char * name, int nprocs)
 {
-  static iter = 10;
+  static int iter = 10;
 
   float times[iter];
 
