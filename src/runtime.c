@@ -1,9 +1,12 @@
+#include <strings.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
 #include "safe.h"
 #include "debug.h"
 #include "param.h"
+#include "stack.h"
+#include "stats.h"
 
 static pthread_t * _procs;
 static void ** _stacks;
@@ -27,6 +30,10 @@ int fibril_rt_nprocs(int n)
   return param_nprocs(n);
 }
 
+void handle(int s, siginfo_t * si, void * unused) {
+  abort();
+}
+
 int fibril_rt_init(int n)
 {
   param_init();
@@ -35,6 +42,20 @@ int fibril_rt_init(int n)
   DEBUG_DUMP(2, "fibril_rt_init:", (nprocs, "%d"));
 
   if (_nprocs < 0) return -1;
+
+  /*stack_t altstack;*/
+  /*SAFE_RZCALL(posix_memalign(&altstack.ss_sp, PARAM_PAGE_SIZE,*/
+        /*PARAM_STACK_SIZE));*/
+  /*altstack.ss_flags = 0;*/
+  /*altstack.ss_size = PARAM_STACK_SIZE;*/
+  /*SAFE_NNCALL(sigaltstack(&altstack, NULL));*/
+
+  struct sigaction sa;
+  bzero(&sa, sizeof(sa));
+  /*sa.sa_flags = SA_SIGINFO | SA_STACK;*/
+  sa.sa_flags = SA_SIGINFO;
+  sa.sa_sigaction = handle;
+  SAFE_NNCALL(sigaction(SIGSEGV, &sa, NULL));
 
   size_t stacksize = PARAM_STACK_SIZE;
 
@@ -79,6 +100,7 @@ int fibril_rt_exit()
   free(_procs);
   free(_stacks);
 
+  printf("PAGES: %ld %ld\n", STATS_COUNTERS[1].cur, STATS_COUNTERS[1].max);
   return 0;
 }
 
