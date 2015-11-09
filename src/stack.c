@@ -2,8 +2,8 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include "fifo.h"
 #include "safe.h"
-#include "sync.h"
 #include "mutex.h"
 #include "param.h"
 #include "stack.h"
@@ -44,7 +44,7 @@ void handle_segfault(int s, siginfo_t * si, void * unused)
 }
 #endif
 
-static unmap(struct _fibril_t * frptr)
+static void unmap(struct _fibril_t * frptr)
 {
   void * addr = frptr->stack.ptr;
   void * top  = frptr->stack.top;
@@ -65,7 +65,7 @@ static unmap(struct _fibril_t * frptr)
   SAFE_NNCALL(mmap(addr, size, PROT_NONE, MAP_FIXED | MAP_PRIVATE, devnull, 0));
 }
 
-static remap(struct _fibril_t * frptr)
+static void remap(struct _fibril_t * frptr)
 {
   void * addr = frptr->stack.ptr;
   void * top  = frptr->stack.top;
