@@ -43,20 +43,6 @@ int fibril_rt_init(int n)
 
   if (_nprocs < 0) return -1;
 
-  /*stack_t altstack;*/
-  /*SAFE_RZCALL(posix_memalign(&altstack.ss_sp, PARAM_PAGE_SIZE,*/
-        /*PARAM_STACK_SIZE));*/
-  /*altstack.ss_flags = 0;*/
-  /*altstack.ss_size = PARAM_STACK_SIZE;*/
-  /*SAFE_NNCALL(sigaltstack(&altstack, NULL));*/
-
-  struct sigaction sa;
-  bzero(&sa, sizeof(sa));
-  /*sa.sa_flags = SA_SIGINFO | SA_STACK;*/
-  sa.sa_flags = SA_SIGINFO;
-  sa.sa_sigaction = handle;
-  SAFE_NNCALL(sigaction(SIGSEGV, &sa, NULL));
-
   size_t stacksize = PARAM_STACK_SIZE;
 
   _procs = malloc(sizeof(pthread_t [nprocs]));
@@ -80,6 +66,7 @@ int fibril_rt_init(int n)
   rsp = _stacks[0] + stacksize;
 
   __asm__ ( "xchg\t%0,%%rsp" : "+r" (rsp) );
+  *(void **) PARAM_STACK_ADDR = PAGE_ALIGN_DOWN(rsp);
   __main((void *) 0);
   __asm__ ( "xchg\t%0,%%rsp" : : "r" (rsp) );
 

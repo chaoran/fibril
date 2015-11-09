@@ -93,13 +93,7 @@ void fibrili_init(int id, int nprocs)
 
   sync_barrier(nprocs);
   _deqs[id] = &fibrili_deq;
-  sync_barrier(nprocs);
-
   DEBUG_DUMP(2, "proc_start:", (id, "%d"), (_deqs[id], "%p"));
-  const size_t align = PARAM_PAGE_SIZE;
-  void * addr;
-  posix_memalign(&addr, align, PARAM_STACK_SIZE);
-  enqueue(addr);
   sync_barrier(nprocs);
 
   fibril_t fr;

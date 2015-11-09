@@ -32,15 +32,15 @@ extern stats_t STATS_COUNTERS[STATS_MAX_COUNTERS];
 
 #define STATS_COUNTER_INC(id, delta) do { \
   if (id > 0) { \
-    size_t n = atomic_addf(&STATS_COUNTERS[id].cur, delta); \
-    size_t m = STATS_COUNTERS[id].max; \
+    long n = atomic_addf(&STATS_COUNTERS[id].cur, delta); \
+    long m = STATS_COUNTERS[id].max; \
     while (n > m) m = atomic_cas(&STATS_COUNTERS[id].max, m, n); \
   } \
 } while (0)
 
 #define STATS_COUNTER_DEC(id, delta) do { \
   if (id > 0) { \
-    atomic_addf(&STATS_COUNTERS[id].cur, -(delta)); \
+    atomic_subf(&STATS_COUNTERS[id].cur, delta); \
   } \
 } while (0)
 
