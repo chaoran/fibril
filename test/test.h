@@ -8,13 +8,13 @@ extern int verify();
 
 extern int n;
 
+#include <stdlib.h>
 #include <fibril.h>
 
 #ifdef BENCHMARK
 
 #include <stdio.h>
 #include <float.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
