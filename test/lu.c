@@ -226,7 +226,7 @@ static void block_schur(Block B, Block A, Block C)
 /**
  * schur - Compute M' = M - VW.
  */
-fibril void schur(Matrix M, Matrix V, Matrix W, int nb)
+fibril static void schur(Matrix M, Matrix V, Matrix W, int nb)
 {
   Matrix M00, M01, M10, M11;
   Matrix V00, V01, V10, V11;
@@ -256,6 +256,8 @@ fibril void schur(Matrix M, Matrix V, Matrix W, int nb)
 
   /* Form Schur complement with recursive calls. */
   fibril_t fr;
+  fibril_init(&fr);
+
   fibril_fork(&fr, schur, (M00, V00, W00, hnb));
   fibril_fork(&fr, schur, (M01, V00, W01, hnb));
   fibril_fork(&fr, schur, (M10, V10, W00, hnb));
@@ -274,7 +276,23 @@ fibril void schur(Matrix M, Matrix V, Matrix W, int nb)
 /*
  * lower_solve - Compute M' where LM' = M.
  */
-static void aux_lower_solve(Matrix Ma, Matrix Mb, Matrix L, int nb);
+fibril static void lower_solve(Matrix M, Matrix L, int nb);
+
+static void aux_lower_solve(Matrix Ma, Matrix Mb, Matrix L, int nb)
+{
+  Matrix L00, L01, L10, L11;
+
+  /* Break L matrix into 4 pieces. */
+  L00 = &MATRIX(L, 0, 0);
+  L01 = &MATRIX(L, 0, nb);
+  L10 = &MATRIX(L, nb, 0);
+  L11 = &MATRIX(L, nb, nb);
+
+  /* Solve with recursive calls. */
+  lower_solve(Ma, L00, nb);
+  schur(Mb, L10, Ma, nb);
+  lower_solve(Mb, L11, nb);
+}
 
 fibril static void lower_solve(Matrix M, Matrix L, int nb)
 {
@@ -296,33 +314,38 @@ fibril static void lower_solve(Matrix M, Matrix L, int nb)
 
   /* Solve with recursive calls. */
   fibril_t fr;
+  fibril_init(&fr);
+
   fibril_fork(&fr, aux_lower_solve, (M00, M10, L, hnb));
   aux_lower_solve(M01, M11, L, hnb);
+
   fibril_join(&fr);
 
   return;
 }
 
-static void aux_lower_solve(Matrix Ma, Matrix Mb, Matrix L, int nb)
-{
-  Matrix L00, L01, L10, L11;
-
-  /* Break L matrix into 4 pieces. */
-  L00 = &MATRIX(L, 0, 0);
-  L01 = &MATRIX(L, 0, nb);
-  L10 = &MATRIX(L, nb, 0);
-  L11 = &MATRIX(L, nb, nb);
-
-  /* Solve with recursive calls. */
-  lower_solve(Ma, L00, nb);
-  schur(Mb, L10, Ma, nb);
-  lower_solve(Mb, L11, nb);
-}
-
 /*
  * upper_solve - Compute M' where M'U = M.
  */
-static void aux_upper_solve(Matrix Ma, Matrix Mb, Matrix U, int nb);
+fibril static void upper_solve(Matrix M, Matrix U, int nb);
+
+static void aux_upper_solve(Matrix Ma, Matrix Mb, Matrix U, int nb)
+{
+  Matrix U00, U01, U10, U11;
+
+  /* Break U matrix into 4 pieces. */
+  U00 = &MATRIX(U, 0, 0);
+  U01 = &MATRIX(U, 0, nb);
+  U10 = &MATRIX(U, nb, 0);
+  U11 = &MATRIX(U, nb, nb);
+
+  /* Solve with recursive calls. */
+  upper_solve(Ma, U00, nb);
+  schur(Mb, Ma, U01, nb);
+  upper_solve(Mb, U11, nb);
+
+  return;
+}
 
 fibril static void upper_solve(Matrix M, Matrix U, int nb)
 {
@@ -344,27 +367,12 @@ fibril static void upper_solve(Matrix M, Matrix U, int nb)
 
   /* Solve with recursive calls. */
   fibril_t fr;
+  fibril_init(&fr);
+
   fibril_fork(&fr, aux_upper_solve, (M00, M01, U, hnb));
   aux_upper_solve(M10, M11, U, hnb);
+
   fibril_join(&fr);
-
-  return;
-}
-
-static void aux_upper_solve(Matrix Ma, Matrix Mb, Matrix U, int nb)
-{
-  Matrix U00, U01, U10, U11;
-
-  /* Break U matrix into 4 pieces. */
-  U00 = &MATRIX(U, 0, 0);
-  U01 = &MATRIX(U, 0, nb);
-  U10 = &MATRIX(U, nb, 0);
-  U11 = &MATRIX(U, nb, nb);
-
-  /* Solve with recursive calls. */
-  upper_solve(Ma, U00, nb);
-  schur(Mb, Ma, U01, nb);
-  upper_solve(Mb, U11, nb);
 
   return;
 }
@@ -395,8 +403,11 @@ fibril void lu(Matrix M, int nb)
 
   /* Solve for upper right and lower left. */
   fibril_t fr;
+  fibril_init(&fr);
+
   fibril_fork(&fr, lower_solve, (M01, M00, hnb));
   upper_solve(M10, M00, hnb);
+
   fibril_join(&fr);
 
   /* Compute Schur complement of lower right. */
