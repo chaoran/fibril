@@ -7,6 +7,7 @@ check_PROGRAMS = \
                  fib \
                  heat \
                  integrate \
+								 knapsack \
 								 lu \
                  matmul \
                  nqueens \
