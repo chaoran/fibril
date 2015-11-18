@@ -637,6 +637,7 @@ void init()
 
 void prep()
 {
+  free_matrix(depth, R);
   R = copy_matrix(depth, A);
 }
 
