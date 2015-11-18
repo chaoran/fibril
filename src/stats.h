@@ -24,8 +24,8 @@
 #ifdef ENABLE_STATS
 
 typedef struct _stats_t {
-  size_t cur __attribute__((aligned(64)));
-  size_t max __attribute__((aligned(64)));
+  long volatile cur __attribute__((aligned(64)));
+  long volatile max __attribute__((aligned(64)));
 } stats_t;
 
 extern stats_t STATS_COUNTERS[STATS_MAX_COUNTERS];

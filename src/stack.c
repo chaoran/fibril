@@ -35,12 +35,14 @@ void handle_segfault(int s, siginfo_t * si, void * unused)
   void * new_top = PAGE_ALIGN_DOWN(addr);
   size_t size = old_top - new_top;
 
-  *(void **) stack = new_top;
+  if (size >= PARAM_PAGE_SIZE) {
+    *(void **) stack = new_top;
 
-  SAFE_ASSERT(addr < old_top);
-  SAFE_NNCALL(mprotect(new_top, size, PROT_READ | PROT_WRITE));
-  long diff = size / PARAM_PAGE_SIZE;
-  STATS_COUNTER_INC(STATS_STACK_PAGES, diff);
+    SAFE_ASSERT(addr < old_top);
+    SAFE_NNCALL(mprotect(new_top, size, PROT_READ | PROT_WRITE));
+    long diff = size / PARAM_PAGE_SIZE;
+    STATS_COUNTER_INC(STATS_STACK_PAGES, diff);
+  }
 }
 #endif
 

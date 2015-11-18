@@ -266,6 +266,7 @@ fibril static Matrix copy_matrix(int depth, Matrix a)
 
     fibril_t fr;
     fibril_init(&fr);
+    inc_count();
 
     fibril_fork(&fr, r00, copy_matrix, (depth, a->child[_00]));
     fibril_fork(&fr, r01, copy_matrix, (depth, a->child[_01]));
@@ -274,6 +275,7 @@ fibril static Matrix copy_matrix(int depth, Matrix a)
     fibril_join(&fr);
 
     r = new_internal(r00, r01, r10, r11);
+    dec_count();
   }
   return r;
 }
@@ -446,6 +448,7 @@ Matrix mul_and_subT(int depth, int lower, Matrix a, Matrix b, Matrix r)
 
     fibril_t fr;
     fibril_init(&fr);
+    inc_count();
 
     if (a->child[_00] && b->child[TR_00])
       fibril_fork(&fr, r00, mul_and_subT, (depth, lower,
@@ -500,6 +503,7 @@ Matrix mul_and_subT(int depth, int lower, Matrix a, Matrix b, Matrix r)
       r->child[_10] = r10;
       r->child[_11] = r11;
     }
+    dec_count();
   }
   return r;
 }
@@ -531,6 +535,7 @@ fibril static Matrix backsub(int depth, Matrix a, Matrix l)
 
     fibril_t fr;
     fibril_init(&fr);
+    inc_count();
 
     if (a00)
       fibril_fork(&fr, a00, backsub, (depth, a00, l00));
@@ -557,6 +562,7 @@ fibril static Matrix backsub(int depth, Matrix a, Matrix l)
     a->child[_01] = a01;
     a->child[_10] = a10;
     a->child[_11] = a11;
+    dec_count();
   }
 
   return a;
@@ -582,9 +588,11 @@ fibril static Matrix cholesky(int depth, Matrix a)
     if (!a10) {
       fibril_t fr;
       fibril_init(&fr);
+      inc_count();
       fibril_fork(&fr, a00, cholesky, (depth, a00));
       a11 = cholesky(depth, a11);
       fibril_join(&fr);
+      dec_count();
     } else {
       a00 = cholesky(depth, a00);
       a10 = backsub(depth, a10, a00);

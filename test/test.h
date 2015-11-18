@@ -14,11 +14,11 @@ extern int n;
 static int count;
 static int max;
 
-static inline inc_count() {
+static inline void inc_count() {
   if (++count > max) max = count;
 }
 
-static inline dec_count() {
+static inline void dec_count() {
   --count;
 }
 
