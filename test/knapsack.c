@@ -112,6 +112,7 @@ fibril static int knapsack(struct item *e, int c, int n, int v)
 
   fibril_t fr;
   fibril_init(&fr);
+  inc_count();
   /*
    * compute the best solution without the current item in the knapsack
    */
@@ -121,6 +122,7 @@ fibril static int knapsack(struct item *e, int c, int n, int v)
   with = knapsack(e + 1, c - e->weight, n - 1, v + e->value);
 
   fibril_join(&fr);
+  dec_count();
 
   best = with > without ? with : without;
 
