@@ -34,7 +34,7 @@ struct item {
   int weight;
 };
 
-int n = 30;
+int n = 32;
 static int capacity = 900;
 static int sol;
 
@@ -68,7 +68,9 @@ static struct item items[] = {
   { 39, 48 },
   { 22, 65 },
   { 6, 7 },
-  { 4, 7 }
+  { 4, 7 },
+  { 33, 42 },
+  { 18, 53 }
 };
 
 static int best_so_far = INT_MIN;
@@ -151,6 +153,13 @@ void test()
 
 int verify()
 {
-  return (sol != 683);
+  int expected = 733;
+
+  if (sol != expected) {
+    printf("sol: %d (expected: %d)\n", sol, expected);
+    return 1;
+  }
+
+  return 0;
 }
 
