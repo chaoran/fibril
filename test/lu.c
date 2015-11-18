@@ -423,17 +423,18 @@ void init()
 {
   nBlocks = n / BLOCK_SIZE;
   M = (Matrix) malloc(n * n * sizeof(double));
+  init_matrix(M, nBlocks);
 #ifndef BENCHMARK
   Msave = (Matrix) malloc(n * n * sizeof(double));
+  memcpy((void *) Msave, (void *) M, n * n * sizeof(double));
 #endif
 
 }
 
 void prep()
 {
-  init_matrix(M, nBlocks);
 #ifndef BENCHMARK
-  memcpy((void *) Msave, (void *) M, n * n * sizeof(double));
+  memcpy((void *) M, (void *) Msave, n * n * sizeof(double));
 #endif
 }
 
