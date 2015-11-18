@@ -30,6 +30,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "test.h"
 
 #define SizeAtWhichDivideAndConquerIsMoreEfficient 64
 #define SizeAtWhichNaiveAlgorithmIsMoreEfficient 16
@@ -50,11 +51,18 @@ typedef unsigned long PTR;
  */
 #define ELEM(A, an, i, j) (A[(i) * (an) + (j)])
 
+#ifndef BENCHMARK
+int n = 512;
+#else
+int n = 4096;
+#endif
+
+static REAL * A, * B, * C;
 
 /*
  * Naive sequential algorithm, for comparison purposes
  */
-void matrixmul(int n, REAL *A, int an, REAL *B, int bn, REAL *C, int cn)
+void matrixmul(int n, REAL * A, int an, REAL * B, int bn, REAL * C, int cn)
 {
   int i, j, k;
   REAL s;
@@ -68,8 +76,6 @@ void matrixmul(int n, REAL *A, int an, REAL *B, int bn, REAL *C, int cn)
       ELEM(C, cn, i, j) = s;
     }
 }
-
-
 
 /*****************************************************************************
  **
@@ -94,12 +100,9 @@ void matrixmul(int n, REAL *A, int an, REAL *B, int bn, REAL *C, int cn)
  **    C = (*C WRITE) Matrix C contains A x B. (Initial value of *C undefined.)
  **
  *****************************************************************************/
-void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
-    unsigned MatrixSize,
-    unsigned RowWidthC,
-    unsigned RowWidthA,
-    unsigned RowWidthB
-    )
+static void FastNaiveMatrixMultiply(
+    REAL * C, REAL * A, REAL * B, unsigned MatrixSize,
+    unsigned RowWidthC, unsigned RowWidthA, unsigned RowWidthB)
 {
   /* Assumes size of real is 8 bytes */
   PTR RowWidthBInBytes = RowWidthB  << 3;
@@ -107,10 +110,6 @@ void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
   PTR MatrixWidthInBytes = MatrixSize << 3;
   PTR RowIncrementC = ( RowWidthC - MatrixSize) << 3;
   unsigned Horizontal, Vertical;
-#ifdef DEBUG_ON
-  REAL *OLDC = C;
-  REAL *TEMPMATRIX;
-#endif
 
   REAL *ARowStart = A;
   for (Vertical = 0; Vertical < MatrixSize; Vertical++) {
@@ -157,9 +156,7 @@ void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
     ARowStart = (REAL*) ( ((PTR) ARowStart) + RowWidthAInBytes );
     C = (REAL*) ( ((PTR) C) + RowIncrementC );
   }
-
 }
-
 
 /*****************************************************************************
  **
@@ -184,11 +181,9 @@ void FastNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
  **    C = (*C READ/WRITE) Matrix C contains C + A x B.
  **
  *****************************************************************************/
-void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
-    unsigned MatrixSize,
-    unsigned RowWidthC,
-    unsigned RowWidthA,
-    unsigned RowWidthB)
+static void FastAdditiveNaiveMatrixMultiply(
+    REAL * C, REAL * A, REAL * B, unsigned MatrixSize,
+    unsigned RowWidthC, unsigned RowWidthA, unsigned RowWidthB)
 {
   /* Assumes size of real is 8 bytes */
   PTR RowWidthBInBytes = RowWidthB  << 3;
@@ -243,7 +238,6 @@ void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
     ARowStart = (REAL*) ( ((PTR) ARowStart) + RowWidthAInBytes );
     C = (REAL*) ( ((PTR) C) + RowIncrementC );
   }
-
 }
 
 
@@ -273,17 +267,15 @@ void FastAdditiveNaiveMatrixMultiply(REAL *C, REAL *A, REAL *B,
  **    C (+)= A x B. (+ if AdditiveMode != 0)
  **
  *****************************************************************************/
-void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
-    unsigned MatrixSize,
-    unsigned RowWidthC,
-    unsigned RowWidthA,
-    unsigned RowWidthB,
-    int AdditiveMode
-    )
+void MultiplyByDivideAndConquer(
+    REAL * C, REAL * A, REAL * B, unsigned MatrixSize,
+    unsigned RowWidthC, unsigned RowWidthA, unsigned RowWidthB,
+    int AdditiveMode)
 {
 #define A00 A
 #define B00 B
 #define C00 C
+
   REAL  *A01, *A10, *A11, *B01, *B10, *B11, *C01, *C10, *C11;
   unsigned QuadrantSize = MatrixSize >> 1;
 
@@ -301,56 +293,33 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
   C11 = C10 + QuadrantSize;
 
   if (QuadrantSize > SizeAtWhichNaiveAlgorithmIsMoreEfficient) {
-
     MultiplyByDivideAndConquer(C00, A00, B00, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        AdditiveMode);
-
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
     MultiplyByDivideAndConquer(C01, A00, B01, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        AdditiveMode);
-
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
     MultiplyByDivideAndConquer(C11, A10, B01, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        AdditiveMode);
-
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
     MultiplyByDivideAndConquer(C10, A10, B00, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        AdditiveMode);
-
+        RowWidthC, RowWidthA, RowWidthB, AdditiveMode);
     MultiplyByDivideAndConquer(C00, A01, B10, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        1);
-
+        RowWidthC, RowWidthA, RowWidthB, 1);
     MultiplyByDivideAndConquer(C01, A01, B11, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        1);
-
+        RowWidthC, RowWidthA, RowWidthB, 1);
     MultiplyByDivideAndConquer(C11, A11, B11, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        1);
-
+        RowWidthC, RowWidthA, RowWidthB, 1);
     MultiplyByDivideAndConquer(C10, A11, B10, QuadrantSize,
-        RowWidthC, RowWidthA, RowWidthB,
-        1);
-
+        RowWidthC, RowWidthA, RowWidthB, 1);
   } else {
-
     if (AdditiveMode) {
       FastAdditiveNaiveMatrixMultiply(C00, A00, B00, QuadrantSize,
           RowWidthC, RowWidthA, RowWidthB);
-
       FastAdditiveNaiveMatrixMultiply(C01, A00, B01, QuadrantSize,
           RowWidthC, RowWidthA, RowWidthB);
-
       FastAdditiveNaiveMatrixMultiply(C11, A10, B01, QuadrantSize,
           RowWidthC, RowWidthA, RowWidthB);
-
       FastAdditiveNaiveMatrixMultiply(C10, A10, B00, QuadrantSize,
           RowWidthC, RowWidthA, RowWidthB);
-
     } else {
-
       FastNaiveMatrixMultiply(C00, A00, B00, QuadrantSize,
           RowWidthC, RowWidthA, RowWidthB);
 
@@ -366,18 +335,14 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
 
     FastAdditiveNaiveMatrixMultiply(C00, A01, B10, QuadrantSize,
         RowWidthC, RowWidthA, RowWidthB);
-
     FastAdditiveNaiveMatrixMultiply(C01, A01, B11, QuadrantSize,
         RowWidthC, RowWidthA, RowWidthB);
-
     FastAdditiveNaiveMatrixMultiply(C11, A11, B11, QuadrantSize,
         RowWidthC, RowWidthA, RowWidthB);
-
     FastAdditiveNaiveMatrixMultiply(C10, A11, B10, QuadrantSize,
         RowWidthC, RowWidthA, RowWidthB);
-
-
   }
+
   return;
 }
 
@@ -397,22 +362,17 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
  **    RowWidthA = Number of elements in memory between A[x,y] and A[x,y+1]
  **    RowWidthB = Number of elements in memory between B[x,y] and B[x,y+1]
  **    RowWidthC = Number of elements in memory between C[x,y] and C[x,y+1]
- **
  ** OUTPUT:
  **    C = (*C WRITE) Matrix C contains A x B. (Initial value of *C undefined.)
  **
  *****************************************************************************/
-#define strassen(n,A,an,B,bn,C,cn) OptimizedStrassenMultiply(C,A,B,n,cn,bn,an)
-    cilk void OptimizedStrassenMultiply(REAL *C, REAL *A, REAL *B,
-        unsigned MatrixSize,
-        unsigned RowWidthC,
-        unsigned RowWidthA,
-        unsigned RowWidthB
-        )
+fibril static void OptimizedStrassenMultiply(
+    REAL * C, REAL * A, REAL * B, unsigned MatrixSize,
+    unsigned RowWidthC, unsigned RowWidthA, unsigned RowWidthB)
 {
   unsigned QuadrantSize = MatrixSize >> 1; /* MatixSize / 2 */
-  unsigned QuadrantSizeInBytes = sizeof(REAL) * QuadrantSize * QuadrantSize
-    + 32;
+  unsigned QuadrantSizeInBytes = sizeof(REAL) * QuadrantSize *
+    QuadrantSize + 32;
   unsigned Column, Row;
 
   /************************************************************************
@@ -424,11 +384,10 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
    **  | A21  A22 |
    **  --        --
    ************************************************************************/
-  REAL /* *A11, *B11, *C11, */ *A12, *B12, *C12,
+  REAL /**A11, *B11, *C11,*/ *A12, *B12, *C12,
        *A21, *B21, *C21, *A22, *B22, *C22;
 
   REAL *S1,*S2,*S3,*S4,*S5,*S6,*S7,*S8,*M2,*M5,*T1sMULT;
-#define T2sMULT C22
 #define NumberOfVariables 11
 
   PTR TempMatrixOffset = 0;
@@ -443,15 +402,9 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
   PTR RowIncrementB = ( RowWidthB - QuadrantSize ) << 3;
   PTR RowIncrementC = ( RowWidthC - QuadrantSize ) << 3;
 
-
   if (MatrixSize <= SizeAtWhichDivideAndConquerIsMoreEfficient) {
-
-    MultiplyByDivideAndConquer(C, A, B,
-        MatrixSize,
-        RowWidthC,
-        RowWidthA,
-        RowWidthB,
-        0);
+    MultiplyByDivideAndConquer(C, A, B, MatrixSize,
+        RowWidthC, RowWidthA, RowWidthB, 0);
     return;
   }
 
@@ -533,103 +486,95 @@ void MultiplyByDivideAndConquer(REAL *C, REAL *A, REAL *B,
     MatrixOffsetB += RowIncrementB;
   } /* end column loop */
 
+  fibril_t fr;
+  fibril_init(&fr);
+
   /* M2 = A11 x B11 */
-  spawn OptimizedStrassenMultiply(M2, A11, B11, QuadrantSize,
-      QuadrantSize, RowWidthA, RowWidthB);
+  fibril_fork(&fr, OptimizedStrassenMultiply,
+      (M2, A11, B11, QuadrantSize, QuadrantSize, RowWidthA, RowWidthB));
 
   /* M5 = S1 * S5 */
-  spawn OptimizedStrassenMultiply(M5, S1, S5, QuadrantSize,
-      QuadrantSize, QuadrantSize, QuadrantSize);
+  fibril_fork(&fr, OptimizedStrassenMultiply,
+      (M5, S1, S5, QuadrantSize, QuadrantSize, QuadrantSize, QuadrantSize));
 
   /* Step 1 of T1 = S2 x S6 + M2 */
-  spawn OptimizedStrassenMultiply(T1sMULT, S2, S6,  QuadrantSize,
-      QuadrantSize, QuadrantSize, QuadrantSize);
+  fibril_fork(&fr, OptimizedStrassenMultiply,
+      (T1sMULT, S2, S6, QuadrantSize, QuadrantSize, QuadrantSize, QuadrantSize));
 
   /* Step 1 of T2 = T1 + S3 x S7 */
-  spawn OptimizedStrassenMultiply(C22, S3, S7, QuadrantSize,
-      RowWidthC /*FIXME*/, QuadrantSize, QuadrantSize);
+  fibril_fork(&fr, OptimizedStrassenMultiply,
+      (C22, S3, S7, QuadrantSize, RowWidthC, QuadrantSize, QuadrantSize));
 
   /* Step 1 of C11 = M2 + A12 * B21 */
-  spawn OptimizedStrassenMultiply(C11, A12, B21, QuadrantSize,
-      RowWidthC, RowWidthA, RowWidthB);
+  fibril_fork(&fr, OptimizedStrassenMultiply,
+      (C11, A12, B21, QuadrantSize, RowWidthC, RowWidthA, RowWidthB));
 
   /* Step 1 of C12 = S4 x B22 + T1 + M5 */
-  spawn OptimizedStrassenMultiply(C12, S4, B22, QuadrantSize,
-      RowWidthC, QuadrantSize, RowWidthB);
+  fibril_fork(&fr, OptimizedStrassenMultiply,
+    (C12, S4, B22, QuadrantSize, RowWidthC, QuadrantSize, RowWidthB));
 
   /* Step 1 of C21 = T2 - A22 * S8 */
-  spawn OptimizedStrassenMultiply(C21, A22, S8, QuadrantSize,
-      RowWidthC, RowWidthA, QuadrantSize);
+  OptimizedStrassenMultiply(C21, A22, S8, QuadrantSize, RowWidthC,
+      RowWidthA, QuadrantSize);
 
-  /**********************************************
-   ** Synchronization Point
-   **********************************************/
-  sync;
+  fibril_join(&fr);
 
+  for (Row = 0; Row < QuadrantSize; Row++) {
+    for (Column = 0; Column < QuadrantSize; Column += 4) {
+      REAL LocalM5_0 = *(M5);
+      REAL LocalM5_1 = *(M5+1);
+      REAL LocalM5_2 = *(M5+2);
+      REAL LocalM5_3 = *(M5+3);
+      REAL LocalM2_0 = *(M2);
+      REAL LocalM2_1 = *(M2+1);
+      REAL LocalM2_2 = *(M2+2);
+      REAL LocalM2_3 = *(M2+3);
+      REAL T1_0 = *(T1sMULT) + LocalM2_0;
+      REAL T1_1 = *(T1sMULT+1) + LocalM2_1;
+      REAL T1_2 = *(T1sMULT+2) + LocalM2_2;
+      REAL T1_3 = *(T1sMULT+3) + LocalM2_3;
+      REAL T2_0 = *(C22) + T1_0;
+      REAL T2_1 = *(C22+1) + T1_1;
+      REAL T2_2 = *(C22+2) + T1_2;
+      REAL T2_3 = *(C22+3) + T1_3;
+      (*(C11))   += LocalM2_0;
+      (*(C11+1)) += LocalM2_1;
+      (*(C11+2)) += LocalM2_2;
+      (*(C11+3)) += LocalM2_3;
+      (*(C12))   += LocalM5_0 + T1_0;
+      (*(C12+1)) += LocalM5_1 + T1_1;
+      (*(C12+2)) += LocalM5_2 + T1_2;
+      (*(C12+3)) += LocalM5_3 + T1_3;
+      (*(C22))   = LocalM5_0 + T2_0;
+      (*(C22+1)) = LocalM5_1 + T2_1;
+      (*(C22+2)) = LocalM5_2 + T2_2;
+      (*(C22+3)) = LocalM5_3 + T2_3;
+      (*(C21  )) = (- *(C21  )) + T2_0;
+      (*(C21+1)) = (- *(C21+1)) + T2_1;
+      (*(C21+2)) = (- *(C21+2)) + T2_2;
+      (*(C21+3)) = (- *(C21+3)) + T2_3;
+      M5 += 4;
+      M2 += 4;
+      T1sMULT += 4;
+      C11 += 4;
+      C12 += 4;
+      C21 += 4;
+      C22 += 4;
+    }
 
-  /***************************************************************************
-   ** Step through all columns row by row (vertically)
-   ** (jumps in memory by RowWidth => bad locality)
-   ** (but we want the best locality on the innermost loop)
-   ***************************************************************************/
-      for (Row = 0; Row < QuadrantSize; Row++) {
+    C11 = (REAL*) ( ((PTR) C11 ) + RowIncrementC);
+    C12 = (REAL*) ( ((PTR) C12 ) + RowIncrementC);
+    C21 = (REAL*) ( ((PTR) C21 ) + RowIncrementC);
+    C22 = (REAL*) ( ((PTR) C22 ) + RowIncrementC);
+  }
 
-        /*************************************************************************
-         ** Step through each row horizontally (addressing elements in each column)
-         ** (jumps linearly througn memory => good locality)
-         *************************************************************************/
-        for (Column = 0; Column < QuadrantSize; Column += 4) {
-          REAL LocalM5_0 = *(M5);
-          REAL LocalM5_1 = *(M5+1);
-          REAL LocalM5_2 = *(M5+2);
-          REAL LocalM5_3 = *(M5+3);
-          REAL LocalM2_0 = *(M2);
-          REAL LocalM2_1 = *(M2+1);
-          REAL LocalM2_2 = *(M2+2);
-          REAL LocalM2_3 = *(M2+3);
-          REAL T1_0 = *(T1sMULT) + LocalM2_0;
-          REAL T1_1 = *(T1sMULT+1) + LocalM2_1;
-          REAL T1_2 = *(T1sMULT+2) + LocalM2_2;
-          REAL T1_3 = *(T1sMULT+3) + LocalM2_3;
-          REAL T2_0 = *(C22) + T1_0;
-          REAL T2_1 = *(C22+1) + T1_1;
-          REAL T2_2 = *(C22+2) + T1_2;
-          REAL T2_3 = *(C22+3) + T1_3;
-          (*(C11))   += LocalM2_0;
-          (*(C11+1)) += LocalM2_1;
-          (*(C11+2)) += LocalM2_2;
-          (*(C11+3)) += LocalM2_3;
-          (*(C12))   += LocalM5_0 + T1_0;
-          (*(C12+1)) += LocalM5_1 + T1_1;
-          (*(C12+2)) += LocalM5_2 + T1_2;
-          (*(C12+3)) += LocalM5_3 + T1_3;
-          (*(C22))   = LocalM5_0 + T2_0;
-          (*(C22+1)) = LocalM5_1 + T2_1;
-          (*(C22+2)) = LocalM5_2 + T2_2;
-          (*(C22+3)) = LocalM5_3 + T2_3;
-          (*(C21  )) = (- *(C21  )) + T2_0;
-          (*(C21+1)) = (- *(C21+1)) + T2_1;
-          (*(C21+2)) = (- *(C21+2)) + T2_2;
-          (*(C21+3)) = (- *(C21+3)) + T2_3;
-          M5 += 4;
-          M2 += 4;
-          T1sMULT += 4;
-          C11 += 4;
-          C12 += 4;
-          C21 += 4;
-          C22 += 4;
-        }
-
-        C11 = (REAL*) ( ((PTR) C11 ) + RowIncrementC);
-        C12 = (REAL*) ( ((PTR) C12 ) + RowIncrementC);
-        C21 = (REAL*) ( ((PTR) C21 ) + RowIncrementC);
-        C22 = (REAL*) ( ((PTR) C22 ) + RowIncrementC);
-      }
-
-    free(StartHeap);
-
+  free(StartHeap);
 }
 
+static void strassen(int n, REAL * A, int an, REAL * B, int bn,
+    REAL * C, int cn) {
+  OptimizedStrassenMultiply(C, A, B, n, cn, bn, an);
+}
 
 /*
  * Set an n by n matrix A to random values.  The distance between
@@ -662,110 +607,38 @@ int compare_matrix(int n, REAL *A, int an, REAL *B, int bn)
 
       c = c / ELEM(A, an, i, j);
       if (c > EPSILON) {
-        printf("Wrong answer !\n");
-        return -1;
+        return 1;
       }
     }
 
   return 0;
 }
 
-
-
-/*
- * Allocate a matrix of side n (therefore n^2 elements)
- */
-REAL * alloc_matrix(int n)
-{
-  return malloc(n * n * sizeof(REAL));
-}
-
-/*
- * simple test program
- */
-int usage(void) {
-  fprintf(stderr, "\nUsage: strassen [<cilk-options>] [-n #] [-c]\n\n");
-  fprintf(stderr, "Multiplies two randomly generated n x n matrices. To check for\n");
-  fprintf(stderr, "correctness use -c.\n\n");
-  return 1;
-}
-
-char *specifiers[] = { "-n", "-c", "-benchmark", "-h", 0};
-int opt_types[] = {INTARG, BOOLARG, BENCHMARK, BOOLARG, 0 };
-
-cilk int main(int argc, char *argv[])
-{
-  REAL *A, *B, *C1, *C2;
-  int verify, benchmark, help, n;
-  Cilk_time tm_begin, tm_elapsed;
-  Cilk_time wk_begin, wk_elapsed;
-  Cilk_time cp_begin, cp_elapsed;
-
-  /* standard benchmark options*/
-  n = 512;
-  verify = 0;
-
-  get_options(argc, argv, specifiers, opt_types, &n, &verify, &benchmark, &help);
-
-  if (help) return usage();
-
-  if (benchmark) {
-    switch (benchmark) {
-      case 1:      /* short benchmark options -- a little work*/
-        n = 256;
-        break;
-      case 2:      /* standard benchmark options*/
-        n = 512;
-        break;
-      case 3:      /* long benchmark options -- a lot of work*/
-        n = 2048;
-        break;
-    }
-  }
-
-  if ((n & (n - 1)) != 0 || (n % 16) != 0) {
-    printf("%d: matrix size must be a power of 2"
-        " and a multiple of %d\n", n, 16);
-    return 1;
-  }
-
-  A = alloc_matrix(n);
-  B = alloc_matrix(n);
-  C1 = alloc_matrix(n);
-  C2 = alloc_matrix(n);
+void init() {
+  A = malloc(n * n * sizeof(REAL));
+  B = malloc(n * n * sizeof(REAL));
+  C = malloc(n * n * sizeof(REAL));
 
   init_matrix(n, A, n);
   init_matrix(n, B, n);
+}
 
-  /* Timing. "Start" timers */
-  sync;
-  cp_begin = Cilk_user_critical_path;
-  wk_begin = Cilk_user_work;
-  tm_begin = Cilk_get_wall_time();
+void prep() {
+}
 
-  spawn strassen(n, A, n, B, n, C2, n);
-  sync;
+void test() {
+  strassen(n, A, n, B, n, C, n);
+}
 
-  /* Timing. "Stop" timers */
-  tm_elapsed = Cilk_get_wall_time() - tm_begin;
-  wk_elapsed = Cilk_user_work - wk_begin;
-  cp_elapsed = Cilk_user_critical_path - cp_begin;
+int verify() {
+  int fail = 0;
 
-  if (verify) {
-    matrixmul(n, A, n, B, n, C1, n);
-    verify = compare_matrix(n, C1, n, C2, n);
-  }
+#ifndef BENCHMARK
+  REAL * E = malloc(n * n * sizeof(REAL));
+  matrixmul(n, A, n, B, n, E, n);
+  fail = compare_matrix(n, E, n, C, n);
+  if (fail > 0) printf("WRONG RESULT!\n");
+#endif
 
-  if (verify)
-    printf("WRONG RESULT!\n");
-  else {
-    printf("\nCilk Example: strassen\n");
-    printf("	      running on %d processor%s\n\n", Cilk_active_size, Cilk_active_size > 1 ? "s" : "");
-    printf("Options: n = %d\n\n", n);
-    printf("Running time  = %4f s\n", Cilk_wall_time_to_sec(tm_elapsed));
-    printf("Work          = %4f s\n", Cilk_time_to_sec(wk_elapsed));
-    printf("Critical path = %4f s\n\n", Cilk_time_to_sec(cp_elapsed));
-  }
-
-  return 0;
+  return fail;
 }

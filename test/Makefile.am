@@ -12,11 +12,13 @@ check_PROGRAMS = \
                  matmul \
                  nqueens \
                  quicksort \
-								 rectmul
+								 rectmul \
+								 strassen
 
 cholesky_LDADD = -lm
 fft_LDADD = -lm
 heat_LDADD = -lm
 lu_LDADD = -lm
+strassen_LDADD = -lm
 
 TESTS = $(check_PROGRAMS)
