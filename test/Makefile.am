@@ -11,7 +11,8 @@ check_PROGRAMS = \
 								 lu \
                  matmul \
                  nqueens \
-                 quicksort
+                 quicksort \
+								 rectmul
 
 cholesky_LDADD = -lm
 fft_LDADD = -lm
