@@ -257,6 +257,7 @@ fibril static void schur(Matrix M, Matrix V, Matrix W, int nb)
   /* Form Schur complement with recursive calls. */
   fibril_t fr;
   fibril_init(&fr);
+  inc_count();
 
   fibril_fork(&fr, schur, (M00, V00, W00, hnb));
   fibril_fork(&fr, schur, (M01, V00, W01, hnb));
@@ -269,6 +270,7 @@ fibril static void schur(Matrix M, Matrix V, Matrix W, int nb)
   fibril_fork(&fr, schur, (M10, V11, W10, hnb));
   schur(M11, V11, W11, hnb);
   fibril_join(&fr);
+  dec_count();
 
   return;
 }
@@ -315,11 +317,13 @@ fibril static void lower_solve(Matrix M, Matrix L, int nb)
   /* Solve with recursive calls. */
   fibril_t fr;
   fibril_init(&fr);
+  inc_count();
 
   fibril_fork(&fr, aux_lower_solve, (M00, M10, L, hnb));
   aux_lower_solve(M01, M11, L, hnb);
 
   fibril_join(&fr);
+  dec_count();
 
   return;
 }
@@ -368,11 +372,13 @@ fibril static void upper_solve(Matrix M, Matrix U, int nb)
   /* Solve with recursive calls. */
   fibril_t fr;
   fibril_init(&fr);
+  inc_count();
 
   fibril_fork(&fr, aux_upper_solve, (M00, M01, U, hnb));
   aux_upper_solve(M10, M11, U, hnb);
 
   fibril_join(&fr);
+  dec_count();
 
   return;
 }
@@ -404,6 +410,7 @@ fibril void lu(Matrix M, int nb)
   /* Solve for upper right and lower left. */
   fibril_t fr;
   fibril_init(&fr);
+  inc_count();
 
   fibril_fork(&fr, lower_solve, (M01, M00, hnb));
   upper_solve(M10, M00, hnb);
@@ -415,6 +422,7 @@ fibril void lu(Matrix M, int nb)
 
   /* Decompose lower right. */
   lu(M11, hnb);
+  dec_count();
 
   return;
 }

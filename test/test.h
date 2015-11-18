@@ -11,6 +11,17 @@ extern int n;
 #include <stdlib.h>
 #include <fibril.h>
 
+static int count;
+static int max;
+
+static inline inc_count() {
+  if (++count > max) max = count;
+}
+
+static inline dec_count() {
+  --count;
+}
+
 #ifdef BENCHMARK
 
 #include <stdio.h>
@@ -99,6 +110,7 @@ int main(int argc, const char *argv[])
 #endif
 
   fibril_rt_exit();
+  printf("D = %d\n", max);
   return verify();
 }
 
