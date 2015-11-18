@@ -6,11 +6,13 @@ check_PROGRAMS = \
                  fib \
                  heat \
                  integrate \
+								 lu \
                  matmul \
                  nqueens \
                  quicksort
 
 fft_LDADD = -lm
 heat_LDADD = -lm
+lu_LDADD = -lm
 
 TESTS = $(check_PROGRAMS)
