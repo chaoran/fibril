@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "test.h"
 
-int n = 1024;
+int n = 2048;
 
 static float *  a;
 static float *  b;

@@ -60,7 +60,12 @@ int verify()
     14200, 73712, 365596, 2279184, 14772512
   };
 
-  printf("nqueens(%d)=%d (expected %d)\n", n, m, res[n - 1]);
-  return (m != res[n - 1]);
+  int failed;
+
+  if (failed = (m != res[n - 1])) {
+    printf("nqueens(%d)=%d (expected %d)\n", n, m, res[n - 1]);
+  }
+
+  return failed;
 }
 

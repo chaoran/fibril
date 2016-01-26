@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <pthread.h>
+#include "fifo.h"
 #include "sync.h"
 #include "stack.h"
 #include "debug.h"
@@ -31,11 +32,31 @@ void schedule(int id, int nprocs, fibril_t * frptr)
     sync_lock(frptr->lock);
 
     if (frptr->count-- == 0) {
-      stack_reinstall(frptr);
+      if (frptr->stack.ptr != fibrili_deq.stack) {
+        if (frptr->unmapped) {
+          stack_reinstall(frptr);
+          frptr->unmapped = 0;
+        }
+        else {
+          enqueue(fibrili_deq.stack);
+          fibrili_deq.stack = frptr->stack.ptr;
+        }
+      }
+
       longjmp(frptr, frptr->stack.top);
     } else {
-      stack_uninstall(frptr);
-      sync_unlock(frptr->lock);
+      if (frptr->stack.ptr == fibrili_deq.stack) {
+        if (stack_uninstall(frptr)) {
+          frptr->unmapped = 1;
+          sync_unlock(frptr->lock);
+        }
+        else {
+          sync_unlock(frptr->lock);
+          fibrili_deq.stack = dequeue();
+        }
+      } else {
+        sync_unlock(frptr->lock);
+      }
     }
   } else {
     if (id == 0) return;
@@ -75,6 +96,11 @@ void fibrili_init(int id, int nprocs)
   sync_barrier(nprocs);
 
   DEBUG_DUMP(2, "proc_start:", (id, "%d"), (_deqs[id], "%p"));
+  const size_t align = PARAM_PAGE_SIZE;
+  void * addr;
+  posix_memalign(&addr, align, PARAM_STACK_SIZE);
+  enqueue(addr);
+  sync_barrier(nprocs);
 
   fibril_t fr;
   fibril_init(&fr);
