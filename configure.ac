@@ -37,7 +37,7 @@ AC_TYPE_SIZE_T
 # Checks for library functions.
 AC_FUNC_MALLOC
 AC_FUNC_MMAP
-AC_CHECK_FUNCS([munmap])
+AC_CHECK_FUNCS([mmap, madvise])
 
 AC_CONFIG_FILES([Makefile
                  src/Makefile
