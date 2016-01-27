@@ -1,13 +1,13 @@
 #include "mutex.h"
-#include "atomic.h"
+#include "sync.h"
 
 #define NULL ((void *) 0)
-#define spin_wait(x) while (!(x)) __asm__ ( "pause" ::: )
+#define spin_wait(x) while (!(x)) __asm__ ( "pause" ::: "memory" )
 
 void mutex_lock(mutex_t ** mutex, mutex_t * node)
 {
   node->next = NULL;
-  mutex_t * prev = atomic_swap(mutex, node);
+  mutex_t * prev = sync_swap(mutex, node);
 
   if (prev) {
     node->flag = 0;
@@ -19,14 +19,14 @@ void mutex_lock(mutex_t ** mutex, mutex_t * node)
 int mutex_trylock(mutex_t ** mutex, mutex_t * node)
 {
   node->next = NULL;
-  mutex_t * prev = atomic_cas(mutex, NULL, node);
+  mutex_t * prev = sync_cas(mutex, NULL, node);
   return (prev == NULL);
 }
 
 void mutex_unlock(mutex_t ** mutex, mutex_t * node)
 {
   if (node->next == NULL) {
-    if (node == atomic_cas(mutex, node, NULL)) {
+    if (node == sync_cas(mutex, node, NULL)) {
       return;
     }
 

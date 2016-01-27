@@ -11,7 +11,7 @@
 static __thread fibril_t * _restart;
 static __thread fibril_t * _frptr;
 static deque_t ** _deqs;
-static fibril_t * _stop;
+static fibril_t * volatile _stop;
 
 __attribute__((noreturn)) static
 void longjmp(fibril_t * frptr, void * rsp)
@@ -62,7 +62,7 @@ void schedule(int id, int nprocs, fibril_t * frptr)
     if (id == 0) return;
   }
 
-  while (sync_load(_stop) == NULL) {
+  while (_stop == NULL) {
     int victim = rand() % nprocs;
 
     if (victim != id) {
@@ -105,6 +105,8 @@ void fibrili_init(int id, int nprocs)
   fibril_t fr;
   fibril_init(&fr);
   _restart = &fr;
+  DEBUG_DUMP(2, "restart:", (_restart, "%p"), (_restart->stack.top, "%p"),
+      (_restart->stack.btm, "%p"));
   fibrili_membar(fibrili_join(_restart));
   schedule(id, nprocs, _frptr);
 }

@@ -21,11 +21,25 @@ extern __thread struct _fibrili_deque_t {
   void * buff[1000];
 } fibrili_deq;
 
+#if defined(__GNUC__) && __GNUC__ >= 4 && __GNUC_MINOR__ > 7
+
 #define fibrili_fence() __atomic_thread_fence(__ATOMIC_SEQ_CST)
 #define fibrili_lock(l) do { \
   __asm__ ( "pause" : : : "memory" ); \
 } while (__atomic_test_and_set(&(l), __ATOMIC_ACQUIRE))
 #define fibrili_unlock(l) __atomic_clear(&(l), __ATOMIC_RELEASE)
+
+#else
+#if defined(__x86_64__) || defined(_M_X64_)
+
+#define fibrili_fence() __sync_synchronize()
+#define fibrili_lock(l) do { \
+  __asm__ ( "pause" ::: "memory" ); \
+} while (__sync_lock_test_and_set(&(l), 1))
+#define fibrili_unlock(l) __sync_lock_release(&(l))
+
+#endif
+#endif
 
 __attribute__((noinline)) extern
 void fibrili_join(struct _fibril_t * frptr);
