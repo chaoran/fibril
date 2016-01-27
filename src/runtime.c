@@ -58,9 +58,9 @@ int fibril_rt_init(int n)
   register void * rsp asm ("r15");
   rsp = _stacks[0] + stacksize;
 
-  __asm__ ( "xchg\t%0,%%rsp" : "+r" (rsp) );
+  __asm__ ( "xchg\t%0,%%rsp" : "+r" (rsp) :: "memory" );
   __main((void *) 0);
-  __asm__ ( "xchg\t%0,%%rsp" : : "r" (rsp) );
+  __asm__ ( "xchg\t%0,%%rsp" : : "r" (rsp) : "memory" );
 
   return 0;
 }
