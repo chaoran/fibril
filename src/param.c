@@ -21,6 +21,8 @@ static void get_stack_size(void ** addr, size_t * size)
 
   pthread_getattr_np(pthread_self(), &attr);
   pthread_attr_getstack(&attr, addr, size);
+
+  *size = 0x100000;
 }
 
 int param_nprocs(int n)
