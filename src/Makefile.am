@@ -11,8 +11,8 @@ pkginclude_HEADERS = \
 
 libfibril_la_SOURCES = deque.c \
                        fibrili.c \
-                       fifo.c \
                        param.c \
+											 pool.c \
                        runtime.c \
                        stack.c \
                        stats.c \
