@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <pthread.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 #include "safe.h"
 #include "debug.h"
 #include "param.h"
@@ -78,6 +80,15 @@ int fibril_rt_exit()
 
   free(_procs);
   free(_stacks);
+
+#ifndef DISABLE_STATS
+  struct rusage ru;
+  SAFE_NNCALL(getrusage(RUSAGE_SELF, &ru));
+  printf("max RSS: %ld (KB)\n", ru.ru_maxrss);
+  printf("# of swaps: %ld\n", ru.ru_nswap);
+  printf("# of minor page faults: %ld\n", ru.ru_minflt);
+  printf("# of major page faults: %ld\n", ru.ru_majflt);
+#endif
 
   return 0;
 }
