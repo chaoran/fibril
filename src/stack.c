@@ -2,13 +2,14 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include "pool.h"
 #include "safe.h"
 #include "sync.h"
 #include "mutex.h"
 #include "param.h"
 #include "stack.h"
 
-static mutex_t * lock;
+static mutex_t * volatile MMAP_LOCK;
 static int devnull;
 
 void stack_init(int id)
@@ -16,11 +17,6 @@ void stack_init(int id)
   if (id == 0) {
     fibrili_deq.stack = PARAM_STACK_ADDR;
     SAFE_NNCALL(devnull = open("/dev/zero", O_RDONLY));
-  } else {
-    const size_t align = PARAM_PAGE_SIZE;
-    const size_t size  = PARAM_STACK_SIZE;
-
-    SAFE_RZCALL(posix_memalign(&fibrili_deq.stack, align, size));
   }
 }
 
@@ -37,22 +33,17 @@ int stack_uninstall(struct _fibril_t * frptr)
 {
   DEBUG_ASSERT(frptr != NULL);
 
-  mutex_t mutex;
-  if (!mutex_trylock(&lock, &mutex)) return 0;
-
   void * addr = frptr->stack.ptr;
-  void * top  = frptr->stack.top;
-  size_t size = PAGE_ALIGN_DOWN(top) - addr;
 
-  DEBUG_DUMP(3, "uninstall:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
-  DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
-  SAFE_NNCALL(mmap(addr, size, PROT_NONE, MAP_FIXED | MAP_PRIVATE, devnull, 0));
+  if (addr != PARAM_STACK_ADDR) {
+    size_t size = PAGE_ALIGN_DOWN(frptr->stack.top) - addr;
+    SAFE_NNCALL(madvise(addr, size, MADV_DONTNEED));
+    fibrili_deq.stack = pool_take(1);
+  } else {
+    do fibrili_deq.stack = pool_take(0);
+    while (fibrili_deq.stack == NULL);
+  }
 
-  const size_t align = PARAM_PAGE_SIZE;
-  SAFE_RZCALL(posix_memalign(&fibrili_deq.stack, align, PARAM_STACK_SIZE));
-  DEBUG_DUMP(3, "alloc:", (frptr, "%p"), (fibrili_deq.stack, "%p"));
-
-  mutex_unlock(&lock, &mutex);
   return 1;
 }
 
@@ -60,24 +51,11 @@ void stack_reinstall(struct _fibril_t * frptr)
 {
   DEBUG_ASSERT(frptr != NULL);
 
-  void * addr = frptr->stack.ptr;
-  void * top  = frptr->stack.top;
-  size_t size = PAGE_ALIGN_DOWN(top) - addr;
+  void * addr = fibrili_deq.stack;
+  SAFE_ASSERT(addr != PARAM_STACK_ADDR);
 
-  mutex_t mutex;
-  mutex_lock(&lock, &mutex);
+  pool_put(fibrili_deq.stack);
 
-  DEBUG_DUMP(3, "free:", (frptr, "%p"), (fibrili_deq.stack, "%p"));
-  DEBUG_ASSERT(fibrili_deq.stack != NULL);
-  free(fibrili_deq.stack);
-  fibrili_deq.stack = addr;
-
-  const int prot = PROT_READ | PROT_WRITE;
-  const int flags = MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS | MAP_NORESERVE;
-  DEBUG_DUMP(3, "reinstall:", (frptr, "%p"), (addr, "%p"), (size, "0x%lx"));
-  DEBUG_ASSERT(addr != NULL && addr < top && top < addr + PARAM_STACK_SIZE);
-  SAFE_NNCALL(mmap(addr, size, prot, flags, -1, 0));
-
-  mutex_unlock(&lock, &mutex);
+  fibrili_deq.stack = frptr->stack.ptr;
 }
 
