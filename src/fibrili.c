@@ -21,13 +21,15 @@ void longjmp(fibril_t * frptr, void * rsp)
   __asm__ ( "mov\t%1,%%rsp\n\t"
             "mov\t%0,%%rbp\n\t"
             "jmp\t*%2\n\t"
-            : : "r" (frptr->stack.btm), "r" (rsp), "r" (frptr->pc) );
+            : : "r" (frptr->stack.btm), "r" (rsp), "r" (frptr->pc) : "memory");
   __builtin_unreachable();
 }
 
 __attribute__((noinline)) static
 void schedule(int id, int nprocs, fibril_t * frptr)
 {
+  struct drand48_data _buffer;
+
   if (frptr != _restart && frptr != _stop) {
     sync_lock(frptr->lock);
 
@@ -46,23 +48,25 @@ void schedule(int id, int nprocs, fibril_t * frptr)
     }
   } else {
     if (id == 0) return;
-    else {
-      do fibrili_deq.stack = pool_take(0);
-      while (fibrili_deq.stack == NULL);
-    }
   }
 
-  while (_stop == NULL) {
-    int victim = rand() % nprocs;
+  while (!_stop) {
+    long victim;
+    lrand48_r(&_buffer, &victim);
+    victim %= nprocs - 1;
+    if (victim >= id) victim += 1;
 
-    if (victim != id) {
-      fibril_t * frptr = deque_steal(_deqs[victim]);
+    fibril_t * frptr = deque_steal(_deqs[victim]);
 
-      if (frptr) {
-        DEBUG_DUMP(1, "steal:", (victim, "%d"), (frptr, "%p"));
-        longjmp(frptr, stack_setup(frptr));
-      }
+    if (frptr) {
+      if (!fibrili_deq.stack) fibrili_deq.stack = pool_take();
+
+      DEBUG_DUMP(1, "steal:", (victim, "%d"), (frptr, "%p"));
+      longjmp(frptr, stack_setup(frptr));
     }
+
+    /** Force the worker to yield as a penalty for the failed steal. */
+    sched_yield();
   }
 
   sync_barrier(nprocs);
@@ -86,7 +90,6 @@ void fibrili_init(int id, int nprocs)
   sync_barrier(nprocs);
 
   DEBUG_DUMP(2, "proc_start:", (id, "%d"), (_deqs[id], "%p"));
-  pool_init();
   sync_barrier(nprocs);
 
   fibril_t fr;

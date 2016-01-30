@@ -6,89 +6,58 @@
 #include "param.h"
 
 #ifndef POOL_GLOBAL_SIZE
-#define POOL_GLOBAL_SIZE 2048
+#define POOL_GLOBAL_SIZE (2048 - 3)
 #endif
 
 #ifndef POOL_LOCAL_SIZE
-#define POOL_LOCAL_SIZE 2
+#define POOL_LOCAL_SIZE 7
 #endif
 
 #ifndef POOL_CACHE_SIZE
-#define POOL_CACHE_SIZE 1
+#define POOL_CACHE_SIZE 4
 #endif
 
-struct {
+static struct {
   mutex_t * volatile lock;
   size_t volatile avail;
-  long volatile total;
   void * buff[POOL_GLOBAL_SIZE];
-} POOL;
+} _pg __attribute__((aligned(128)));
 
-typedef struct {
-  size_t avail;
+static __thread struct {
+  size_t volatile avail;
   void * buff[POOL_LOCAL_SIZE];
-} pool_t;
-
-static __thread pool_t * _pool;
-
-static void * allocate(int force)
-{
-  void * stack = NULL;
-
-  if (force || sync_fadd(POOL.total, 1) < POOL_GLOBAL_SIZE) {
-    const size_t align = PARAM_PAGE_SIZE;
-    const size_t nbyte = PARAM_STACK_SIZE;
-    SAFE_RZCALL(posix_memalign(&stack, align, nbyte));
-  } else {
-    sync_fadd(POOL.total, -1);
-  }
-
-  return stack;
-}
-
-static void deallocate(void * addr)
-{
-  sync_fadd(POOL.total, -1);
-  free(addr);
-}
-
-void pool_init()
-{
-  pool_t * p;
-  SAFE_RZCALL(posix_memalign((void **) &p, PARAM_PAGE_SIZE, sizeof(pool_t)));
-  p->avail = 0;
-
-  _pool = p;
-}
+} _pl __attribute__((aligned(128)));
 
 /**
  * Take a stack from the pool or allocate from heap if the pool is empty.
  * @return Return a stack or NULL if the pool has reached its limit.
  */
-void * pool_take(int force)
+void * pool_take()
 {
   void * stack = NULL;
-  pool_t * p = _pool;
 
   /** Take a stack from the available stacks. */
-  if (p->avail > 0) {
-    stack = p->buff[--p->avail];
+  if (_pl.avail > 0) {
+    stack = _pl.buff[--_pl.avail];
   } else {
     /** Take a stack from the parent pool. */
-    if (POOL.avail > 0) {
+    if (_pg.avail > 0) {
       mutex_t mutex;
-      mutex_lock(&POOL.lock, &mutex);
+      mutex_lock(&_pg.lock, &mutex);
 
-      if (POOL.avail > 0) {
-        stack = POOL.buff[--POOL.avail];
+      if (_pg.avail > 0) {
+        stack = _pg.buff[--_pg.avail];
       }
 
-      mutex_unlock(&POOL.lock, &mutex);
+      mutex_unlock(&_pg.lock, &mutex);
     }
 
-    if (!stack) stack = allocate(force);
+    if (!stack) {
+      SAFE_RZCALL(posix_memalign(&stack, PARAM_PAGE_SIZE, PARAM_STACK_SIZE));
+    }
   }
 
+  SAFE_ASSERT(stack);
   return stack;
 }
 
@@ -99,38 +68,30 @@ void * pool_take(int force)
  */
 void pool_put(void * stack)
 {
-  pool_t * p = _pool;
+  SAFE_ASSERT(stack);
 
-  /** Put stack back into local pool. */
-  if (p->avail < POOL_LOCAL_SIZE) {
-    p->buff[p->avail++] = stack;
-    return;
-  }
+  /** If local pool does not have space, */
+  if (_pl.avail >= POOL_LOCAL_SIZE) {
+    /** Try moving stacks to parent pool. */
+    if (_pg.avail < POOL_GLOBAL_SIZE) {
+      mutex_t mutex;
+      mutex_lock(&_pg.lock, &mutex);
 
-  SAFE_ASSERT(p->avail == POOL_LOCAL_SIZE);
+      /** Keep only POOL_CACHE_SIZE stacks. */
+      while (_pl.avail > POOL_CACHE_SIZE && _pg.avail < POOL_GLOBAL_SIZE) {
+        _pg.buff[_pg.avail++] = _pl.buff[--_pl.avail];
+      }
 
-  /** Try putting stacks to parent pool. */
-  if (POOL.avail < POOL_GLOBAL_SIZE) {
-    mutex_t mutex;
-    mutex_lock(&POOL.lock, &mutex);
-
-    /** If parent pool has space, put stack into parent pool. */
-    if (POOL.avail < POOL_GLOBAL_SIZE) {
-      POOL.buff[POOL.avail++] = stack;
-      stack = NULL;
+      mutex_unlock(&_pg.lock, &mutex);
     }
 
-    /** Since we have acquired the parent lock, move more stacks back. */
-    while (p->avail > POOL_CACHE_SIZE && POOL.avail < POOL_GLOBAL_SIZE) {
-      POOL.buff[POOL.avail++] = p->buff[--p->avail];
+    /** Free local pool for space. */
+    while (_pl.avail >= POOL_LOCAL_SIZE) {
+      free(_pl.buff[--_pl.avail]);
     }
-
-    mutex_unlock(&POOL.lock, &mutex);
   }
 
-  /** Put stack back to heap. */
-  if (stack) deallocate(stack);
-  /** Remove extra stacks from local pool. */
-  while (p->avail > POOL_CACHE_SIZE) deallocate(p->buff[--p->avail]);
+  /** Invariant: we always put stack into local pool. */
+  _pl.buff[_pl.avail++] = stack;
 }
 
