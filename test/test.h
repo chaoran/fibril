@@ -17,6 +17,7 @@ extern int n;
 #include <float.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 
 static void sort(float * a, int n)
 {
@@ -46,8 +47,11 @@ size_t static inline time_elapsed(size_t val)
 static void bench(const char * name, int nprocs)
 {
   static int iter = 10;
-
   float times[iter];
+
+  struct rusage ru;
+  getrusage(RUSAGE_SELF, &ru);
+  long rss = ru.ru_maxrss;
 
   printf("===========================================\n");
   printf("  Benchmark: %s\n", strrchr(name, '/') + 1);
@@ -71,10 +75,14 @@ static void bench(const char * name, int nprocs)
   float p90 = times[8];
   float med = times[5];
 
+  getrusage(RUSAGE_SELF, &ru);
+  rss = ru.ru_maxrss - rss;
+
   printf("  Execution time summary:\n");
   printf("    Median: %f s\n", med);
   printf("    10th %%: %f s\n", p10);
   printf("    90th %%: %f s\n", p90);
+  printf("    Max RSS: %ld (KB)\n", rss);
   printf("===========================================\n");
 }
 
