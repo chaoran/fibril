@@ -9,6 +9,10 @@ size_t PARAM_PAGE_SIZE;
 void * PARAM_STACK_ADDR;
 size_t PARAM_STACK_SIZE;
 
+#ifndef PARAM_DEFAULT_STACK_SIZE
+#define PARAM_DEFAULT_STACK_SIZE 0xfe000
+#endif
+
 static size_t get_page_size()
 {
   int pagesize = sysconf(_SC_PAGESIZE);
@@ -22,7 +26,7 @@ static void get_stack_size(void ** addr, size_t * size)
   pthread_getattr_np(pthread_self(), &attr);
   pthread_attr_getstack(&attr, addr, size);
 
-  *size = 0x100000;
+  *size = PARAM_DEFAULT_STACK_SIZE;
 }
 
 int param_nprocs(int n)
