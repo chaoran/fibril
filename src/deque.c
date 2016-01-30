@@ -7,6 +7,8 @@ __thread deque_t fibrili_deq;
 
 struct _fibril_t * deque_steal(deque_t * deq)
 {
+  if (deq->head >= deq->tail) return NULL;
+
   sync_lock(deq->lock);
 
   int head = deq->head++;
