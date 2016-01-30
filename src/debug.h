@@ -56,6 +56,9 @@ extern __thread int _tid;
 #define DEBUG_VAR(var, spec) , var
 
 #include <stdio.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #define DEBUG_DUMP(lv, tag, ...) do { \
   if (lv <= DEBUG_LEVEL) { \
@@ -63,19 +66,6 @@ extern __thread int _tid;
         DEBUG_TID DEBUG_VARS(__VA_ARGS__) \
     ); \
     fflush(stderr); \
-  } \
-} while (0)
-
-#ifdef ENABLE_DEBUG
-
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#define DEBUG_ASSERT(F) do { \
-  if (!(F)) { \
-    DEBUG_DUMP(0, "assertion failed: " # F); \
-    DEBUG_BREAK(!(F)); \
   } \
 } while (0)
 
@@ -92,10 +82,18 @@ extern __thread int _tid;
   while (wait); \
 } while (0)
 
+#ifdef ENABLE_DEBUG
+
+#define DEBUG_ASSERT(F) do { \
+  if (!(F)) { \
+    DEBUG_DUMP(0, "assertion failed: " # F); \
+    DEBUG_BREAK(!(F)); \
+  } \
+} while (0)
+
 #else /* ENABLE_DEBUG is undefined */
 
 #define DEBUG_ASSERT(...)
-#define DEBUG_BREAK(...)
 
 #endif /* end of ENABLE_DEBUG */
 #endif /* end of include guard: DEBUG_H */
