@@ -12,7 +12,7 @@
 #define fibril_fork_wrt(fp, rt, fn, ag) rt = cilk_spawn fn ag
 
 #define fibril_rt_init(n) (__cilkrts_set_param("stack size", "0x800000"))
-#define fibril_rt_exit()
+#define fibril_rt_exit() (__cilkrts_end_cilk())
 #define fibril_rt_nprocs(n) \
   (n > 0 ? __cilkrts_set_param("nworkers", #n) : __cilkrts_get_nworkers())
 

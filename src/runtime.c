@@ -4,6 +4,7 @@
 #include "safe.h"
 #include "debug.h"
 #include "param.h"
+#include "stats.h"
 
 static pthread_t * _procs;
 static void ** _stacks;
@@ -78,6 +79,10 @@ int fibril_rt_exit()
 
   free(_procs);
   free(_stacks);
+
+  STATS_EXPORT(N_STEALS);
+  STATS_EXPORT(N_SUSPENSIONS);
+  STATS_EXPORT(N_STACKS);
   return 0;
 }
 

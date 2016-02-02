@@ -4,6 +4,7 @@
 #include "sync.h"
 #include "mutex.h"
 #include "param.h"
+#include "stats.h"
 
 #ifndef POOL_GLOBAL_SIZE
 #define POOL_GLOBAL_SIZE (2048 - 3)
@@ -54,6 +55,7 @@ void * pool_take()
 
     if (!stack) {
       SAFE_RZCALL(posix_memalign(&stack, PARAM_PAGE_SIZE, PARAM_STACK_SIZE));
+      STATS_INC(N_STACKS);
     }
   }
 
@@ -88,6 +90,7 @@ void pool_put(void * stack)
     /** Free local pool for space. */
     while (_pl.avail >= POOL_LOCAL_SIZE) {
       free(_pl.buff[--_pl.avail]);
+      STATS_DEC(N_STACKS);
     }
   }
 

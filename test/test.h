@@ -52,6 +52,7 @@ static void bench(const char * name, int nprocs)
   struct rusage ru;
   getrusage(RUSAGE_SELF, &ru);
   long rss = ru.ru_maxrss;
+  long flt = ru.ru_minflt;
 
   printf("===========================================\n");
   printf("  Benchmark: %s\n", strrchr(name, '/') + 1);
@@ -77,13 +78,15 @@ static void bench(const char * name, int nprocs)
 
   getrusage(RUSAGE_SELF, &ru);
   rss = ru.ru_maxrss - rss;
+  flt = ru.ru_minflt - flt;
 
   printf("  Execution time summary:\n");
   printf("    Median: %f s\n", med);
   printf("    10th %%: %f s\n", p10);
   printf("    90th %%: %f s\n", p90);
+  printf("  Resources summary: \n");
   printf("    Max RSS: %ld (KB)\n", rss);
-  printf("===========================================\n");
+  printf("    # of page faults: %ld\n", flt);
 }
 
 #endif
@@ -109,6 +112,14 @@ int main(int argc, const char *argv[])
 #endif
 
   fibril_rt_exit();
+
+#ifdef BENCHMARK
+  printf("  Statistics summary:\n");
+  printf("    # of steals: %s\n", getenv("FIBRIL_N_STEALS"));
+  printf("    # of suspensions: %s\n", getenv("FIBRIL_N_SUSPENSIONS"));
+  printf("    # of stacks used: %s\n", getenv("FIBRIL_N_STACKS"));
+  printf("===========================================\n");
+#endif
   return verify();
 }
 

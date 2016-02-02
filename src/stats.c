@@ -1,20 +1,7 @@
-#ifdef ENABLE_STATS
+#include "stats.h"
 
-#include <stdio.h>
-#include <sys/resource.h>
+#ifdef FIBRIL_STATS
 
-static size_t stats_peek_rss()
-{
-  struct rusage rusage;
-  getrusage( RUSAGE_SELF, &rusage );
-  return (size_t) (rusage.ru_maxrss * 1024L);
-}
-
-__attribute__((destructor))
-void _print_stats(void)
-{
-  size_t rss = stats_peek_rss();
-  printf("Maximum RSS: %ld KB\n", rss / 1024L);
-}
+struct _stats_counter_t _stats_table[STATS_LAST_ENTRY];
 
 #endif

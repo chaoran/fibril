@@ -19,6 +19,8 @@ FIBRIL_IF_ENABLED([debug], [Build fibril in debugging mode],
    case "${enable_debug}" in 1|2|3) ;; *) enable_debug=0 ;; esac
    AC_DEFINE_UNQUOTED([FIBRIL_DEBUG], [${enable_debug}], [Fibril debug enabled])
   ])
+FIBRIL_IF_ENABLED([stats], [Enable statistics collection],
+  [ AC_DEFINE([FIBRIL_STATS], [1], [Enable statistics collection.]) ])
 
 # Check for pthreads
 ACX_PTHREAD([LIBS="$PTHREAD_LIBS $LIBS"
@@ -35,7 +37,6 @@ AC_C_INLINE
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
-AC_FUNC_MALLOC
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([mmap, madvise])
 
