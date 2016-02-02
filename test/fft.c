@@ -20,6 +20,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/mman.h>
 #include "test.h"
 #include "fft.h"
 
@@ -30,7 +32,7 @@ int n = 12;
 #endif
 
 static int size;
-static COMPLEX *in, *out, *cp;
+static COMPLEX *in, *out, *cp, *W;
 static const REAL pi = 3.1415926535897932384626434;
 
 /*
@@ -242,7 +244,6 @@ static void fft(int n, COMPLEX * in, COMPLEX * out)
   int l = n;
   int r;
 
-  COMPLEX * W = malloc(sizeof(COMPLEX [n + 1]));
   compute_w_coefficients(n, 0, n / 2, W);
 
   /**
@@ -256,7 +257,6 @@ static void fft(int n, COMPLEX * in, COMPLEX * out)
   } while (l > 1);
 
   fft_aux(n, in, out, factors, W, n);
-  free(W);
   return;
 }
 
@@ -291,8 +291,9 @@ static void fft_alt(int n, COMPLEX * in, COMPLEX * out)
 void init()
 {
   size = (1 << n);
-  out = (COMPLEX*) malloc(size * sizeof(COMPLEX));
-  in  = (COMPLEX*) malloc(size * sizeof(COMPLEX));
+  out = malloc(sizeof(COMPLEX [size]));
+  in  = malloc(sizeof(COMPLEX [size]));
+  W   = malloc(sizeof(COMPLEX [size + 1]));
 
   int i;
   for (i = 0; i < size; ++i) {
@@ -303,14 +304,10 @@ void init()
 
 void prep()
 {
-  free(cp);
-  cp = malloc(sizeof(COMPLEX [size]));
+  if (cp == NULL)
+    cp = malloc(sizeof(COMPLEX [size]));
 
-  int i;
-  for (i = 0; i < size; ++i) {
-    c_re(cp[i]) = c_re(in[i]);
-    c_im(cp[i]) = c_im(in[i]);
-  }
+  memcpy(cp, in, sizeof(COMPLEX [size]));
 }
 
 void test()
@@ -341,8 +338,6 @@ int verify(void)
     if (d < -1.0e-10 || d > 1.0e-10) a /= d;
     if (a > error) error = a;
   }
-
-  free(expect);
 
   if (error > 1e-3) {
     printf("size=%d error=%e\n", size, error);
