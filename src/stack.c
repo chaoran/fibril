@@ -47,10 +47,7 @@ void stack_reinstall(struct _fibril_t * frptr)
   void * addr = fibrili_deq.stack;
   SAFE_ASSERT(addr != PARAM_STACK_ADDR);
 
-  if (addr) {
-    SAFE_NNCALL(madvise(addr, PARAM_STACK_SIZE, MADV_DONTNEED));
-    pool_put(addr);
-  }
+  if (addr) pool_put(addr);
 
   fibrili_deq.stack = frptr->stack.ptr;
 }
