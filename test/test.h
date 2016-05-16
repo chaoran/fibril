@@ -102,8 +102,8 @@ int main(int argc, const char *argv[])
 
   init();
 
-  int nprocs = fibril_rt_nprocs(0);
-  fibril_rt_init(nprocs);
+  fibril_rt_init(0);
+  int nprocs = fibril_rt_nprocs();
 
 #ifdef BENCHMARK
   bench(argv[0], nprocs);

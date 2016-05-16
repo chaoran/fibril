@@ -8,7 +8,6 @@
 
 static pthread_t * _procs;
 static void ** _stacks;
-static int _nprocs;
 
 __thread int _tid;
 
@@ -19,23 +18,25 @@ static void * __main(void * id)
 {
   _tid = (int) (intptr_t) id;
 
-  fibrili_init(_tid, _nprocs);
+  fibrili_init(_tid, PARAM_NPROCS);
   return NULL;
 }
 
-int fibril_rt_nprocs(int n)
+int fibril_rt_nprocs()
 {
-  return param_nprocs(n);
+  if (PARAM_NPROCS == 0) {
+    return param_nprocs(0);
+  } else {
+    return PARAM_NPROCS;
+  }
 }
 
 int fibril_rt_init(int n)
 {
-  param_init();
+  param_init(n);
 
-  int nprocs = _nprocs = param_nprocs(n);
-  DEBUG_DUMP(2, "fibril_rt_init:", (nprocs, "%d"));
-
-  if (_nprocs < 0) return -1;
+  int nprocs = PARAM_NPROCS;
+  if (nprocs <= 0) return -1;
 
   size_t stacksize = PARAM_STACK_SIZE;
 
@@ -68,11 +69,11 @@ int fibril_rt_init(int n)
 
 int fibril_rt_exit()
 {
-  fibrili_exit(_tid, _nprocs);
+  fibrili_exit(_tid, PARAM_NPROCS);
 
   int i;
 
-  for (i = 1; i < _nprocs; ++i) {
+  for (i = 1; i < PARAM_NPROCS; ++i) {
     pthread_join(_procs[i], NULL);
     free(_stacks[i]);
   }

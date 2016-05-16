@@ -58,6 +58,6 @@ void fibril_join(fibril_t * frptr)
 
 extern int fibril_rt_init(int nprocs);
 extern int fibril_rt_exit();
-extern int fibril_rt_nprocs(int nprocs);
+extern int fibril_rt_nprocs();
 
 #endif /* end of include guard: FIBRILE_H */
