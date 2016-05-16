@@ -49,16 +49,16 @@ static void bench(const char * name, int nprocs)
   static int iter = 10;
   float times[iter];
 
-  struct rusage ru;
-  getrusage(RUSAGE_SELF, &ru);
-  long rss = ru.ru_maxrss;
-  long flt = ru.ru_minflt;
-
   printf("===========================================\n");
   printf("  Benchmark: %s\n", strrchr(name, '/') + 1);
   printf("  Input size: %d\n", n);
   printf("  Number of iterations: %d\n", iter);
   printf("  Number of processors: %d\n", nprocs);
+
+  struct rusage ru;
+  getrusage(RUSAGE_SELF, &ru);
+  long rss = ru.ru_maxrss;
+  long flt = ru.ru_minflt;
 
   int i;
   for (i = 0; i < iter; ++i) {
@@ -85,7 +85,8 @@ static void bench(const char * name, int nprocs)
   printf("    10th %%: %f s\n", p10);
   printf("    90th %%: %f s\n", p90);
   printf("  Resources summary: \n");
-  printf("    Max RSS: %ld (KB)\n", rss);
+  printf("    Max RSS: %ld (KB)\n", ru.ru_maxrss);
+  printf("    Runtime RSS: %ld (KB)\n", rss);
   printf("    # of page faults: %ld\n", flt);
 }
 
