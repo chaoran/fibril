@@ -1,6 +1,10 @@
 #ifndef TEST_H
 #define TEST_H
 
+#if HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 extern void init();
 extern void prep();
 extern void test();
@@ -114,13 +118,14 @@ int main(int argc, const char * argv[])
 
   fibril_rt_exit();
 
-#ifdef BENCHMARK
+#ifdef FIBRIL_STATS
   printf("  Statistics summary:\n");
   printf("    # of steals: %s\n", getenv("FIBRIL_N_STEALS"));
   printf("    # of suspensions: %s\n", getenv("FIBRIL_N_SUSPENSIONS"));
   printf("    # of stacks used: %s\n", getenv("FIBRIL_N_STACKS"));
-  printf("===========================================\n");
+  printf("    # of pages used: %s\n", getenv("FIBRIL_N_PAGES"));
 #endif
+  printf("===========================================\n");
 
   return verify();
 }
