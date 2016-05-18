@@ -45,5 +45,6 @@ AC_CONFIG_FILES([Makefile
                  test/Makefile
                  benchmark/Makefile
                  benchmark/cilkplus/Makefile
+                 benchmark/tbb/Makefile
                  benchmark/serial/Makefile])
 AC_OUTPUT

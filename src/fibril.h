@@ -22,6 +22,10 @@
 #elif FIBRIL_CILKPLUS
 #include <fibril/cilkplus.h>
 
+/** TBB version. */
+#elif FIBRIL_TBB
+#include <fibril/tbb.h>
+
 /** Fibril version. */
 #else
 #include <fibril/fibrile.h>

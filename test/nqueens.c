@@ -4,34 +4,31 @@
 int n = 14;
 int m;
 
-fibril static int nqueens(int * a, int n, int d)
+fibril static int nqueens(const int * a, int n, int d, int i)
 {
-  int i, j;
+  int aa[d + 1];
+  int j;
 
-  if (d > 0) {
-    for (j = 0; j < d; ++j) {
-      int diff = a[j] - a[d];
-      int dist = d - j;
+  for (j = 0; j < d; ++j) {
+    aa[j] = a[j];
 
-      if (diff == 0 || dist == diff || dist + diff == 0) return 0;
-    }
+    int diff = a[j] - i;
+    int dist = d - j;
+
+    if (diff == 0 || dist == diff || dist + diff == 0) return 0;
   }
 
+  if (d >= 0) aa[d] = i;
   if (++d == n) return 1;
 
   int res[n];
-  int aa[n][d + 1];
+  a = aa;
 
   fibril_t fr;
   fibril_init(&fr);
 
   for (i = 0; i < n; ++i) {
-    for (j = 0; j < d; ++j) {
-      aa[i][j] = a[j];
-    }
-
-    aa[i][d] = i;
-    fibril_fork(&fr, res[i], nqueens, (aa[i], n, d));
+    fibril_fork(&fr, res[i], nqueens, (a, n, d, i));
   }
 
   fibril_join(&fr);
@@ -50,7 +47,7 @@ void prep() {}
 
 void test()
 {
-  m = nqueens(NULL, n, -1);
+  m = nqueens(NULL, n, -1, 0);
 }
 
 int verify()

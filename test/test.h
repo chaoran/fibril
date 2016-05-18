@@ -94,9 +94,9 @@ static void bench(const char * name, int nprocs)
 
 #include <stdlib.h>
 
-int main(int argc, const char *argv[])
+int main(int argc, const char * argv[])
 {
-  if (argc > 1 && (argc = atoi((void *) argv[1])) > 0) {
+  if (argc > 1 && (argc = atoi(argv[1])) > 0) {
     n = argc;
   }
 
@@ -121,6 +121,7 @@ int main(int argc, const char *argv[])
   printf("    # of stacks used: %s\n", getenv("FIBRIL_N_STACKS"));
   printf("===========================================\n");
 #endif
+
   return verify();
 }
 

@@ -7,7 +7,8 @@ pkginclude_HEADERS = \
                      fibrile.h \
                      fibrili.h \
                      fork.h \
-                     serial.h
+                     serial.h \
+                     tbb.h
 
 libfibril_la_SOURCES = deque.c \
                        fibrili.c \
