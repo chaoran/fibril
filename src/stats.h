@@ -23,6 +23,7 @@ typedef enum _stats_t {
   N_STEALS = 0,
   N_SUSPENSIONS,
   N_STACKS,
+  N_PAGES,
   STATS_LAST_ENTRY /** No more enum entries after this. */
 } stats_t;
 
@@ -31,12 +32,12 @@ extern struct _stats_counter_t {
   volatile size_t peak;
 } _stats_table[STATS_LAST_ENTRY];
 
-#define STATS_COUNT(e) do { \
-  sync_fadd(_stats_table[e].peak, 1); \
+#define STATS_COUNT(e, n) do { \
+  sync_fadd(_stats_table[e].peak, n); \
 } while (0)
 
-#define STATS_INC(e) do { \
-  long curr = sync_fadd(_stats_table[e].curr, 1); \
+#define STATS_INC(e, n) do { \
+  long curr = sync_fadd(_stats_table[e].curr, n); \
   while (1) { \
     size_t peak = _stats_table[e].peak; \
     if (peak > curr) break; \
@@ -44,8 +45,8 @@ extern struct _stats_counter_t {
   } \
 } while (0)
 
-#define STATS_DEC(e) do { \
-  sync_fadd(_stats_table[e].curr, -1); \
+#define STATS_DEC(e, n) do { \
+  sync_fadd(_stats_table[e].curr, -n); \
 } while (0)
 
 #define STATS_EXPORT(e) do { \

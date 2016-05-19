@@ -42,7 +42,7 @@ void schedule(int id, int nprocs, fibril_t * frptr)
       longjmp(frptr, frptr->stack.top);
     } else {
       if (frptr->stack.ptr == fibrili_deq.stack) {
-        STATS_COUNT(N_SUSPENSIONS);
+        STATS_COUNT(N_SUSPENSIONS, 1);
         stack_uninstall(frptr);
       }
 
@@ -64,7 +64,7 @@ void schedule(int id, int nprocs, fibril_t * frptr)
       if (!fibrili_deq.stack) fibrili_deq.stack = pool_take();
 
       DEBUG_DUMP(1, "steal:", (victim, "%d"), (frptr, "%p"));
-      STATS_COUNT(N_STEALS);
+      STATS_COUNT(N_STEALS, 1);
       longjmp(frptr, stack_setup(frptr));
     }
 

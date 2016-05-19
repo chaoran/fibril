@@ -14,6 +14,10 @@ __thread int _tid;
 extern void fibrili_init(int id, int nprocs);
 extern void fibrili_exit(int id, int nprocs);
 
+#ifdef FIBRIL_STATS
+void * MAIN_STACK_TOP;
+#endif
+
 static void * __main(void * id)
 {
   _tid = (int) (intptr_t) id;
@@ -60,6 +64,11 @@ int fibril_rt_init(int n)
   register void * rsp asm ("r15");
   rsp = _stacks[0] + stacksize;
 
+#ifdef FIBRIL_STATS
+  register void * top asm ("rsp");
+  MAIN_STACK_TOP = PAGE_ALIGN_DOWN(top);
+#endif
+
   __asm__ ( "xchg\t%0,%%rsp" : "+r" (rsp) :: "memory" );
   __main((void *) 0);
   __asm__ ( "xchg\t%0,%%rsp" : : "r" (rsp) : "memory" );
@@ -84,6 +93,8 @@ int fibril_rt_exit()
   STATS_EXPORT(N_STEALS);
   STATS_EXPORT(N_SUSPENSIONS);
   STATS_EXPORT(N_STACKS);
+  STATS_EXPORT(N_PAGES);
+
   return 0;
 }
 

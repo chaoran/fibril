@@ -55,7 +55,11 @@ void * pool_take()
 
     if (!stack) {
       SAFE_RZCALL(posix_memalign(&stack, PARAM_PAGE_SIZE, PARAM_STACK_SIZE));
-      STATS_INC(N_STACKS);
+      STATS_INC(N_STACKS, 1);
+
+#ifdef FIBRIL_STATS
+      SAFE_NNCALL(mprotect(stack, PARAM_STACK_SIZE, PROT_NONE));
+#endif
     }
   }
 
@@ -90,7 +94,7 @@ void pool_put(void * stack)
     /** Free local pool for space. */
     while (_pl.avail >= POOL_LOCAL_SIZE) {
       free(_pl.buff[--_pl.avail]);
-      STATS_DEC(N_STACKS);
+      STATS_DEC(N_STACKS, 1);
     }
   }
 
