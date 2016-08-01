@@ -46,14 +46,14 @@ void fibril_join(fibril_t * frptr)
 } while (0)
 
 /** _fibril_fork_wrt. */
-#define fibril_fork_wrt(fp, rt, fn, ag) do { \
+#define fibril_fork_wrt(fp, rtp, fn, ag) do { \
   __attribute__((noinline, hot, optimize(3))) \
-  void _fibril_##fn##_fork(_fibril_defs ag fibril_t * f, __typeof__(&rt) p) { \
+  void _fibril_##fn##_fork(_fibril_defs ag fibril_t * f, __typeof__(rtp) p) { \
     fibrili_push(f); \
     *p = fn(_fibril_args ag); \
     if (!fibrili_pop()) fibrili_resume(f); \
   } \
-  fibrili_membar(_fibril_##fn##_fork(_fibril_expand ag fp, &rt)); \
+  fibrili_membar(_fibril_##fn##_fork(_fibril_expand ag fp, rtp)); \
 } while (0)
 
 extern int fibril_rt_init(int nprocs);

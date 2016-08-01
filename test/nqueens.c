@@ -28,7 +28,7 @@ fibril static int nqueens(const int * a, int n, int d, int i)
   fibril_init(&fr);
 
   for (i = 0; i < n; ++i) {
-    fibril_fork(&fr, res[i], nqueens, (a, n, d, i));
+    fibril_fork(&fr, &res[i], nqueens, (a, n, d, i));
   }
 
   fibril_join(&fr);

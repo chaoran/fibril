@@ -50,7 +50,7 @@ double integrate(double x1, double y1, double x2, double y2, double area)
   fibril_t fr;
   fibril_init(&fr);
 
-  fibril_fork(&fr, area_x1x0, integrate, (x1, y1, x0, y0, area_x1x0));
+  fibril_fork(&fr, &area_x1x0, integrate, (x1, y1, x0, y0, area_x1x0));
   area_x0x2 = integrate(x0, y0, x2, y2, area_x0x2);
 
   fibril_join(&fr);

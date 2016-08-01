@@ -118,6 +118,7 @@ int main(int argc, const char * argv[])
 
   fibril_rt_exit();
 
+#ifdef BENCHMARK
 #ifdef FIBRIL_STATS
   printf("  Statistics summary:\n");
   printf("    # of steals: %s\n", getenv("FIBRIL_N_STEALS"));
@@ -126,6 +127,7 @@ int main(int argc, const char * argv[])
   printf("    # of pages used: %s\n", getenv("FIBRIL_N_PAGES"));
 #endif
   printf("===========================================\n");
+#endif
 
   return verify();
 }

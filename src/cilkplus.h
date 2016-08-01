@@ -9,7 +9,7 @@
 #define fibril_join(fp) cilk_sync
 
 #define fibril_fork_nrt(fp, fn, ag)     cilk_spawn fn ag
-#define fibril_fork_wrt(fp, rt, fn, ag) rt = cilk_spawn fn ag
+#define fibril_fork_wrt(fp, rt, fn, ag) *rt = cilk_spawn fn ag
 
 #define fibril_rt_init(n) (__cilkrts_set_param("stack size", "0x800000"))
 #define fibril_rt_exit() (__cilkrts_end_cilk())

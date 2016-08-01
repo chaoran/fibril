@@ -10,8 +10,8 @@
 #define fibril_join(fp) (fp)->wait()
 
 #define fibril_fork_nrt(fp, fn, ag) (fp)->run([=]{ fn ag; })
-#define fibril_fork_wrt(fp, rt, fn, ag) do { \
-  __typeof__(&rt) pt = &(rt); \
+#define fibril_fork_wrt(fp, rtp, fn, ag) do { \
+  __typeof__(rtp) pt = rtp; \
   (fp)->run([=]{ *pt = fn ag; }); \
 } while (0)
 

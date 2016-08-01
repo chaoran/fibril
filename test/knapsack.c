@@ -115,7 +115,7 @@ fibril static int knapsack(struct item *e, int c, int n, int v)
   /*
    * compute the best solution without the current item in the knapsack
    */
-  fibril_fork(&fr, without, knapsack, (e + 1, c, n - 1, v));
+  fibril_fork(&fr, &without, knapsack, (e + 1, c, n - 1, v));
 
   /* compute the best solution with the current item in the knapsack */
   with = knapsack(e + 1, c - e->weight, n - 1, v + e->value);

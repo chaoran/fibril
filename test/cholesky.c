@@ -267,9 +267,9 @@ fibril static Matrix copy_matrix(int depth, Matrix a)
     fibril_t fr;
     fibril_init(&fr);
 
-    fibril_fork(&fr, r00, copy_matrix, (depth, a->child[_00]));
-    fibril_fork(&fr, r01, copy_matrix, (depth, a->child[_01]));
-    fibril_fork(&fr, r10, copy_matrix, (depth, a->child[_10]));
+    fibril_fork(&fr, &r00, copy_matrix, (depth, a->child[_00]));
+    fibril_fork(&fr, &r01, copy_matrix, (depth, a->child[_01]));
+    fibril_fork(&fr, &r10, copy_matrix, (depth, a->child[_10]));
     r11 = copy_matrix(depth, a->child[_11]);
     fibril_join(&fr);
 
@@ -448,44 +448,44 @@ Matrix mul_and_subT(int depth, int lower, Matrix a, Matrix b, Matrix r)
     fibril_init(&fr);
 
     if (a->child[_00] && b->child[TR_00])
-      fibril_fork(&fr, r00, mul_and_subT, (depth, lower,
+      fibril_fork(&fr, &r00, mul_and_subT, (depth, lower,
           a->child[_00], b->child[TR_00],
           r00));
 
     if (!lower && a->child[_00] && b->child[TR_01])
-      fibril_fork(&fr, r01, mul_and_subT, (depth, 0,
+      fibril_fork(&fr, &r01, mul_and_subT, (depth, 0,
           a->child[_00], b->child[TR_01],
           r01));
 
     if (a->child[_10] && b->child[TR_00])
-      fibril_fork(&fr, r10, mul_and_subT, (depth, 0,
+      fibril_fork(&fr, &r10, mul_and_subT, (depth, 0,
           a->child[_10], b->child[TR_00],
           r10));
 
     if (a->child[_10] && b->child[TR_01])
-      fibril_fork(&fr, r11, mul_and_subT, (depth, lower,
+      fibril_fork(&fr, &r11, mul_and_subT, (depth, lower,
           a->child[_10], b->child[TR_01],
           r11));
 
     fibril_join(&fr);
 
     if (a->child[_01] && b->child[TR_10])
-      fibril_fork(&fr, r00, mul_and_subT, (depth, lower,
+      fibril_fork(&fr, &r00, mul_and_subT, (depth, lower,
           a->child[_01], b->child[TR_10],
           r00));
 
     if (!lower && a->child[_01] && b->child[TR_11])
-      fibril_fork(&fr, r01, mul_and_subT, (depth, 0,
+      fibril_fork(&fr, &r01, mul_and_subT, (depth, 0,
           a->child[_01], b->child[TR_11],
           r01));
 
     if (a->child[_11] && b->child[TR_10])
-      fibril_fork(&fr, r10, mul_and_subT, (depth, 0,
+      fibril_fork(&fr, &r10, mul_and_subT, (depth, 0,
           a->child[_11], b->child[TR_10],
           r10));
 
     if (a->child[_11] && b->child[TR_11])
-      fibril_fork(&fr, r11, mul_and_subT, (depth, lower,
+      fibril_fork(&fr, &r11, mul_and_subT, (depth, lower,
           a->child[_11], b->child[TR_11],
           r11));
 
@@ -533,23 +533,23 @@ fibril static Matrix backsub(int depth, Matrix a, Matrix l)
     fibril_init(&fr);
 
     if (a00)
-      fibril_fork(&fr, a00, backsub, (depth, a00, l00));
+      fibril_fork(&fr, &a00, backsub, (depth, a00, l00));
     if (a10)
-      fibril_fork(&fr, a10, backsub, (depth, a10, l00));
+      fibril_fork(&fr, &a10, backsub, (depth, a10, l00));
 
     fibril_join(&fr);
 
     if (a00 && l10)
-      fibril_fork(&fr, a01, mul_and_subT, (depth, 0, a00, l10, a01));
+      fibril_fork(&fr, &a01, mul_and_subT, (depth, 0, a00, l10, a01));
     if (a10 && l10)
-      fibril_fork(&fr, a11, mul_and_subT, (depth, 0, a10, l10, a11));
+      fibril_fork(&fr, &a11, mul_and_subT, (depth, 0, a10, l10, a11));
 
     fibril_join(&fr);
 
     if (a01)
-      fibril_fork(&fr, a01, backsub, (depth, a01, l11));
+      fibril_fork(&fr, &a01, backsub, (depth, a01, l11));
     if (a11)
-      fibril_fork(&fr, a11, backsub, (depth, a11, l11));
+      fibril_fork(&fr, &a11, backsub, (depth, a11, l11));
 
     fibril_join(&fr);
 
@@ -582,7 +582,7 @@ fibril static Matrix cholesky(int depth, Matrix a)
     if (!a10) {
       fibril_t fr;
       fibril_init(&fr);
-      fibril_fork(&fr, a00, cholesky, (depth, a00));
+      fibril_fork(&fr, &a00, cholesky, (depth, a00));
       a11 = cholesky(depth, a11);
       fibril_join(&fr);
     } else {
