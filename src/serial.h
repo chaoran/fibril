@@ -7,7 +7,7 @@
 #define fibril_join(fp)
 
 #define fibril_fork_nrt(fp, fn, ag) (fn ag)
-#define fibril_fork_wrt(fp, rt, fn, ag) (rt = fn ag)
+#define fibril_fork_wrt(fp, rtp, fn, ag) (*rtp = fn ag)
 
 #define fibril_rt_init(n)
 #define fibril_rt_exit()
