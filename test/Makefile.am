@@ -2,18 +2,18 @@ AM_CPPFLAGS = -I$(includedir)
 AM_LDFLAGS = -L$(libdir) -l$(PACKAGE)
 
 check_PROGRAMS = \
-								 cholesky \
+                 cholesky \
                  fft \
                  fib \
                  heat \
                  integrate \
-								 knapsack \
-								 lu \
+                 knapsack \
+                 lu \
                  matmul \
                  nqueens \
                  quicksort \
-								 rectmul \
-								 strassen
+                 rectmul \
+                 strassen
 
 cholesky_LDADD = -lm
 fft_LDADD = -lm
